@@ -222,7 +222,6 @@ int SDL_main(int argc, char* argv[])
 						!((turn_move == false) && (table[became_field[0]][became_field[1]].find('b') != std::string::npos)))
 					{
 						// добавить рокировку
-						// слон и ферзь не должны ходить сквозь фигуры
 						switch (table[chosed_field[0]][chosed_field[1]][1])
 						{
 						case 'K': 
@@ -252,7 +251,36 @@ int SDL_main(int argc, char* argv[])
 							break;
 						case 'B':
 							if (abs(chosed_field[0] - became_field[0]) == abs(chosed_field[1] - became_field[1]))
+							{
 								available_move = true;
+								int minX = std::min(chosed_field[0], became_field[0]);
+								int maxX = std::max(chosed_field[0], became_field[0]);
+								int minY = std::min(chosed_field[1], became_field[1]);
+								int maxY = std::max(chosed_field[1], became_field[1]);
+								if ((chosed_field[0] > became_field[0]) && (chosed_field[1] > became_field[1]) || 
+									(chosed_field[0] < became_field[0]) && (chosed_field[1] < became_field[1]))
+								{
+									for (int i = minX + 1, j = minY + 1; (i < maxX) && (j < maxY); i++, j++)
+									{
+										if (table[i][j] != "--")
+										{
+											available_move = false;
+											break;
+										}
+									}
+								}
+								else
+								{
+									for (int i = maxX - 1, j = minY + 1; (i > minX) && (j < maxY); i--, j++)
+									{
+										if (table[i][j] != "--")
+										{
+											available_move = false;
+											break;
+										}
+									}
+								}
+							}
 							break;
 						case 'R':
 							if ((chosed_field[0] != became_field[0]) && (chosed_field[1] == became_field[1]))
@@ -285,10 +313,65 @@ int SDL_main(int argc, char* argv[])
 							}
 							break;
 						case 'Q':
-							if (((chosed_field[0] != became_field[0]) && (chosed_field[1] == became_field[1]) || (chosed_field[0] == became_field[0]) && 
-								(chosed_field[1] != became_field[1])) || (abs(chosed_field[0] - became_field[0]) == abs(chosed_field[1] - became_field[1])) || 
-								((abs(chosed_field[0] - became_field[0]) <= 1) && (abs(chosed_field[1] - became_field[1]) <= 1)))
+							if (abs(chosed_field[0] - became_field[0]) == abs(chosed_field[1] - became_field[1]))
+							{
 								available_move = true;
+								int minX = std::min(chosed_field[0], became_field[0]);
+								int maxX = std::max(chosed_field[0], became_field[0]);
+								int minY = std::min(chosed_field[1], became_field[1]);
+								int maxY = std::max(chosed_field[1], became_field[1]);
+								if ((chosed_field[0] > became_field[0]) && (chosed_field[1] > became_field[1]) ||
+									(chosed_field[0] < became_field[0]) && (chosed_field[1] < became_field[1]))
+								{
+									for (int i = minX + 1, j = minY + 1; (i < maxX) && (j < maxY); i++, j++)
+									{
+										if (table[i][j] != "--")
+										{
+											available_move = false;
+											break;
+										}
+									}
+								}
+								else
+								{
+									for (int i = maxX - 1, j = minY + 1; (i > minX) && (j < maxY); i--, j++)
+									{
+										if (table[i][j] != "--")
+										{
+											available_move = false;
+											break;
+										}
+									}
+								}
+							}
+							else if ((chosed_field[0] != became_field[0]) && (chosed_field[1] == became_field[1]))
+							{
+									available_move = true;
+								int min = std::min(chosed_field[0], became_field[0]);
+								int max = std::max(chosed_field[0], became_field[0]);
+								for (int i = min + 1; i < max; i++)
+								{
+									if (table[i][chosed_field[1]] != "--")
+									{
+										available_move = false;
+										break;
+									}
+								}
+							}
+							else if ((chosed_field[0] == became_field[0]) && (chosed_field[1] != became_field[1]))
+							{
+								available_move = true;
+								int min = std::min(chosed_field[1], became_field[1]);
+								int max = std::max(chosed_field[1], became_field[1]);
+								for (int i = min + 1; i < max; i++)
+								{
+									if (table[chosed_field[0]][i] != "--")
+									{
+										available_move = false;
+										break;
+									}
+								}
+							}
 							break;
 						case 'N':
 							if ((abs(chosed_field[0] - became_field[0]) == 1) && (abs(chosed_field[1] - became_field[1]) == 2) ||
