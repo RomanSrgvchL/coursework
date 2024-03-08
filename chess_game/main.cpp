@@ -14,7 +14,6 @@ int height_font = 38;
 int fps = 150;
 int win_width = size_field * 8, win_height = size_field * 8;
 
-
 void DeInit(int error)
 {
 	if (ren != NULL) SDL_DestroyRenderer(ren);
@@ -88,10 +87,9 @@ SDL_Texture* LoadTextureFromFile(const char* filename)
 }
 
 
-bool AvailableMove(bool turn_move, int* chosen_field, int *become_field,  std::string table[8][8], SDL_Rect* pieces)
+bool AvailableMove(int* chosen_field, int *become_field,  std::string table[8][8], SDL_Rect* pieces)
 {
 	bool available_move = false;
-	
 	switch (table[chosen_field[0]][chosen_field[1]][1])
 	{
 	case 'K':
@@ -255,36 +253,96 @@ bool AvailableMove(bool turn_move, int* chosen_field, int *become_field,  std::s
 
 bool BitField(bool turn_move, int* king_field, int* become_field, std::string table[8][8], SDL_Rect *pieces)
 {
-	int i = 0;
-	int max = 16;
+	int i = 16;
+	int max = 32;
 	if (turn_move)
 	{
-		i = 16;
-		max = 32;
+		i = 0;
+		max = 16;
 
 	}
 	bool field_is_bit = false;
 	int chosen_field[2];
 	for (i; i < max; i++)
 	{
-		chosen_field[0] = pieces[i].y / 80;
-		chosen_field[1] = pieces[i].x / 80;
-		std::string space = table[become_field[0]][become_field[1]];
-		table[become_field[0]][become_field[1]] = "-K";
-		table[king_field[0]][king_field[1]] = "--";
-		if (AvailableMove(turn_move, chosen_field, become_field,  table, pieces) && (pieces[i].x != -100))
+		if ((pieces[i].x != -100) && !((pieces[i].x == become_field[1] * size_field) && (pieces[i].y == become_field[0] * size_field)))
 		{
-			field_is_bit = true;
+			chosen_field[0] = pieces[i].y / size_field;
+			chosen_field[1] = pieces[i].x / size_field;
+			std::string space = table[become_field[0]][become_field[1]];
+			if (turn_move) table[become_field[0]][become_field[1]] = "wK";
+			else table[become_field[0]][become_field[1]] = "bK";
+			table[king_field[0]][king_field[1]] = "--";
+			if (AvailableMove(chosen_field, become_field, table, pieces))
+			{
+				field_is_bit = true;
+				if (turn_move) table[king_field[0]][king_field[1]] = "wK";
+				else table[king_field[0]][king_field[1]] = "bK";
+				table[become_field[0]][become_field[1]] = space;
+				break;
+			}
 			if (turn_move) table[king_field[0]][king_field[1]] = "wK";
 			else table[king_field[0]][king_field[1]] = "bK";
 			table[become_field[0]][become_field[1]] = space;
-			break;
 		}
-		if (turn_move) table[king_field[0]][king_field[1]] = "wK";
-		else table[king_field[0]][king_field[1]] = "bK";
-		table[become_field[0]][become_field[1]] = space;
 	}
 	return field_is_bit;
+}
+
+
+bool Check(bool turn_move, int* piece_chosen_field, int* become_field, std::string table[8][8], SDL_Rect* pieces)
+{
+	int king_field[2];
+	std::string find_field = "bK";
+	if (turn_move) find_field = "wK";
+	for (int i = 0; i < 8; i++)
+	{
+		for (int j = 0; j < 8; j++)
+			if (table[i][j] == find_field)
+			{
+				king_field[0] = i;
+				king_field[1] = j;
+				i = 8;
+				break;
+			}
+	}
+	int i = 16;
+	int max = 32;
+	if (turn_move)
+	{
+		i = 0;
+		max = 16;
+
+	}
+	bool check = false;
+	int chosen_field[2];
+	for (i; i < max; i++)
+	{
+		if (pieces[i].x != -100)
+		{ 
+			chosen_field[0] = pieces[i].y / 80;
+			chosen_field[1] = pieces[i].x / 80;
+			std::string space = table[become_field[0]][become_field[1]];
+			table[become_field[0]][become_field[1]] = table[piece_chosen_field[0]][piece_chosen_field[1]];
+			table[piece_chosen_field[0]][piece_chosen_field[1]] = "--";
+			if (AvailableMove(chosen_field, king_field, table, pieces))
+			{
+				table[piece_chosen_field[0]][piece_chosen_field[1]] = table[become_field[0]][become_field[1]];
+				table[become_field[0]][become_field[1]] = space;
+				check = true;
+				break;
+			}
+			table[piece_chosen_field[0]][piece_chosen_field[1]] = table[become_field[0]][become_field[1]];
+			table[become_field[0]][become_field[1]] = space;
+		}
+	}
+	return check;
+}
+
+
+bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
+{
+	return true;
 }
 
 
@@ -325,43 +383,43 @@ int SDL_main(int argc, char* argv[])
 
 	#pragma region Destinations
 	SDL_Rect pieces[32];
-	pieces[0] = { 2 * size_field, 7 * size_field, size_piece, size_piece };
-	pieces[1] = { 5 * size_field, 7 * size_field, size_piece, size_piece };
-	pieces[2] = { 4 * size_field, 7 * size_field, size_piece, size_piece };
-	pieces[3] = { 1 * size_field, 7 * size_field, size_piece, size_piece };
-	pieces[4] = { 6 * size_field, 7 * size_field, size_piece, size_piece };
-	pieces[5] = { 0 * size_field, 6 * size_field, size_piece, size_piece };
-	pieces[6] = { 1 * size_field, 6 * size_field, size_piece, size_piece };
-	pieces[7] = { 2 * size_field, 6 * size_field, size_piece, size_piece };
-	pieces[8] = { 3 * size_field, 6 * size_field, size_piece, size_piece };
-	pieces[9] = { 4 * size_field, 6 * size_field, size_piece, size_piece };
-	pieces[10] = { 5 * size_field, 6 * size_field, size_piece, size_piece };
-	pieces[11] = { 6 * size_field, 6 * size_field, size_piece, size_piece };
-	pieces[12] = { 7 * size_field, 6 * size_field, size_piece, size_piece };
-	pieces[13] = { 3 * size_field, 7 * size_field, size_piece, size_piece };
-	pieces[14] = { 0 * size_field, 7 * size_field, size_piece, size_piece };
-	pieces[15] = { 7 * size_field, 7 * size_field, size_piece, size_piece };
-	pieces[16] = { 2 * size_field, 0 * size_field, size_piece, size_piece };
-	pieces[17] = { 5 * size_field, 0 * size_field, size_piece, size_piece };
-	pieces[18] = { 4 * size_field, 0 * size_field, size_piece, size_piece };
-	pieces[19] = { 1 * size_field, 0 * size_field, size_piece, size_piece };
-	pieces[20] = { 6 * size_field, 0 * size_field, size_piece, size_piece };
-	pieces[21] = { 0 * size_field, 1 * size_field, size_piece, size_piece };
-	pieces[22] = { 1 * size_field, 1 * size_field, size_piece, size_piece };
-	pieces[23] = { 2 * size_field, 1 * size_field, size_piece, size_piece };
-	pieces[24] = { 3 * size_field, 1 * size_field, size_piece, size_piece };
-	pieces[25] = { 4 * size_field, 1 * size_field, size_piece, size_piece };
-	pieces[26] = { 5 * size_field, 1 * size_field, size_piece, size_piece };
-	pieces[27] = { 6 * size_field, 1 * size_field, size_piece, size_piece };
-	pieces[28] = { 7 * size_field, 1 * size_field, size_piece, size_piece };
-	pieces[29] = { 3 * size_field, 0 * size_field, size_piece, size_piece };
-	pieces[30] = { 0 * size_field, 0 * size_field, size_piece, size_piece };
-	pieces[31] = { 7 * size_field, 0 * size_field, size_piece, size_piece };
+	pieces[0] = { 0 * size_field, 0 * size_field, size_piece, size_piece };
+	pieces[1] = { 1 * size_field, 0 * size_field, size_piece, size_piece };
+	pieces[2] = { 2 * size_field, 0 * size_field, size_piece, size_piece };
+	pieces[3] = { 3 * size_field, 0 * size_field, size_piece, size_piece };
+	pieces[4] = { 4 * size_field, 0 * size_field, size_piece, size_piece };
+	pieces[5] = { 5 * size_field, 0 * size_field, size_piece, size_piece };
+	pieces[6] = { 6 * size_field, 0 * size_field, size_piece, size_piece };
+	pieces[7] = { 7 * size_field, 0 * size_field, size_piece, size_piece };
+	pieces[8] = { 0 * size_field, 1 * size_field, size_piece, size_piece };
+	pieces[9] = { 1 * size_field, 1 * size_field, size_piece, size_piece };
+	pieces[10] = { 2 * size_field, 1 * size_field, size_piece, size_piece };
+	pieces[11] = { 3 * size_field, 1 * size_field, size_piece, size_piece };
+	pieces[12] = { 4 * size_field, 1 * size_field, size_piece, size_piece };
+	pieces[13] = { 5 * size_field, 1 * size_field, size_piece, size_piece };
+	pieces[14] = { 6 * size_field, 1 * size_field, size_piece, size_piece };
+	pieces[15] = { 7 * size_field, 1 * size_field, size_piece, size_piece };
+	pieces[16] = { 0 * size_field, 7 * size_field, size_piece, size_piece };
+	pieces[17] = { 1 * size_field, 7 * size_field, size_piece, size_piece };
+	pieces[18] = { 2 * size_field, 7 * size_field, size_piece, size_piece };
+	pieces[19] = { 3 * size_field, 7 * size_field, size_piece, size_piece };
+	pieces[20] = { 4 * size_field, 7 * size_field, size_piece, size_piece };
+	pieces[21] = { 5 * size_field, 7 * size_field, size_piece, size_piece };
+	pieces[22] = { 6 * size_field, 7 * size_field, size_piece, size_piece };
+	pieces[23] = { 7 * size_field, 7 * size_field, size_piece, size_piece };
+	pieces[24] = { 0 * size_field, 6 * size_field, size_piece, size_piece };
+	pieces[25] = { 1 * size_field, 6 * size_field, size_piece, size_piece };
+	pieces[26] = { 2 * size_field, 6 * size_field, size_piece, size_piece };
+	pieces[27] = { 3 * size_field, 6 * size_field, size_piece, size_piece };
+	pieces[28] = { 4 * size_field, 6 * size_field, size_piece, size_piece };
+	pieces[29] = { 5 * size_field, 6 * size_field, size_piece, size_piece };
+	pieces[30] = { 6 * size_field, 6 * size_field, size_piece, size_piece };
+	pieces[31] = { 7 * size_field, 6 * size_field, size_piece, size_piece };
 	#pragma endregion
 
 	int chosed = 0;
 	int chosen_field[2], become_field[2];
-	int dst_chosen_piece[2], dst_became_piece[2];
+	int dst_chosen_piece[2], dst_become_piece[2];
 	int number_chosen_piece;
 	
 	bool turn_move = true;
@@ -380,11 +438,6 @@ int SDL_main(int argc, char* argv[])
 	while (isRunning)
 	{
 		while (SDL_PollEvent(&ev))
-		// при ходе фигурой проверять, стоит ли король этой фигуры на битом поле после хода
-		// 
-		// если король стоит на битом поле, то нужно походить так, чтобы поле перестало быть битым или он на нём не стоял
-		// если королю некуда ходить и нельзя сделать это поле небитым, то это мат, выводим сообщение о победе
-		// при ходе фигурой проверять, стоит ли король этой фигуры на битом поле после хода
 		{
 			switch (ev.type)
 			{
@@ -438,18 +491,19 @@ int SDL_main(int argc, char* argv[])
 				{
 					become_field[0] = ev.button.y / size_field;
 					become_field[1] = ev.button.x / size_field;
-					dst_became_piece[0] = become_field[1] * size_field;
-					dst_became_piece[1] = become_field[0] * size_field;
+					dst_become_piece[0] = become_field[1] * size_field;
+					dst_become_piece[1] = become_field[0] * size_field;
 					if ((chosed == 1) && (ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < win_width) && (ev.button.y < win_height) && 
 						!((become_field[0] == chosen_field[0]) && (become_field[1] == chosen_field[1])) && !((turn_move == true) && 
 						(table[become_field[0]][become_field[1]].find('w') != std::string::npos)) && 
 						!((turn_move == false) && (table[become_field[0]][become_field[1]].find('b') != std::string::npos)))
 					{
 						if (table[chosen_field[0]][chosen_field[1]].find('K') != std::string::npos)
-							available_move = AvailableMove(turn_move, chosen_field, become_field,  table, pieces) && 
+							available_move = AvailableMove(chosen_field, become_field, table, pieces) &&
 							!BitField(turn_move, chosen_field, become_field, table, pieces);
 						else
-							available_move = AvailableMove(turn_move, chosen_field, become_field,  table, pieces);
+							available_move = AvailableMove(chosen_field, become_field, table, pieces) &&
+							!Check(turn_move, chosen_field, become_field, table, pieces);
 						if (available_move)
 						{ 
 							std::cout << "you moved the " << table[chosen_field[0]][chosen_field[1]] << "\n\n";
@@ -457,7 +511,7 @@ int SDL_main(int argc, char* argv[])
 							{
 								for (int i = 0; i < 32; i++)
 								{
-									if ((pieces[i].x == dst_became_piece[0]) && (pieces[i].y == dst_became_piece[1]))
+									if ((pieces[i].x == dst_become_piece[0]) && (pieces[i].y == dst_become_piece[1]))
 									{
 										pieces[i].x = -100;
 										pieces[i].y = -100;
@@ -465,8 +519,8 @@ int SDL_main(int argc, char* argv[])
 									}
 								}
 							}
-							pieces[number_chosen_piece].x = dst_became_piece[0];
-							pieces[number_chosen_piece].y = dst_became_piece[1];
+							pieces[number_chosen_piece].x = dst_become_piece[0];
+							pieces[number_chosen_piece].y = dst_become_piece[1];
 							table[become_field[0]][become_field[1]] = table[chosen_field[0]][chosen_field[1]];
 							table[chosen_field[0]][chosen_field[1]] = "--";
 							for (int i = 0; i < 8; i++)
@@ -486,15 +540,15 @@ int SDL_main(int argc, char* argv[])
 							pieces[number_chosen_piece].y = dst_chosen_piece[1];;
 						}
 					}
-					else if ((chosed == 1) && !((dst_became_piece[0] == dst_chosen_piece[0]) &&
-						(dst_became_piece[1] == dst_chosen_piece[1])))
+					else if ((chosed == 1) && !((dst_become_piece[0] == dst_chosen_piece[0]) &&
+						(dst_become_piece[1] == dst_chosen_piece[1])))
 					{
 						std::cout << "this move is impossible" << "\n\n";
 						pieces[number_chosen_piece].x = dst_chosen_piece[0];
 						pieces[number_chosen_piece].y = dst_chosen_piece[1];
 					}
-					else if ((chosed == 1) && (dst_became_piece[0] == dst_chosen_piece[0]) &&
-						(dst_became_piece[1] == dst_chosen_piece[1]))
+					else if ((chosed == 1) && (dst_become_piece[0] == dst_chosen_piece[0]) &&
+						(dst_become_piece[1] == dst_chosen_piece[1]))
 					{
 						std::cout << "you put the " << table[become_field[0]][become_field[1]] << " back" << "\n\n";
 						pieces[number_chosen_piece].x = dst_chosen_piece[0];
@@ -516,38 +570,38 @@ int SDL_main(int argc, char* argv[])
 
 		#pragma region RenderCopy
 		SDL_RenderCopy(ren, tex_board, NULL, &rect_board);
-		SDL_RenderCopy(ren, tex_wb, NULL, &pieces[0]);
-		SDL_RenderCopy(ren, tex_wb, NULL, &pieces[1]);
-		SDL_RenderCopy(ren, tex_wk, NULL, &pieces[2]);
-		SDL_RenderCopy(ren, tex_wn, NULL, &pieces[3]);
-		SDL_RenderCopy(ren, tex_wn, NULL, &pieces[4]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[5]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[6]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[7]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[8]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[9]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[10]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[11]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[12]);
-		SDL_RenderCopy(ren, tex_wq, NULL, &pieces[13]);
-		SDL_RenderCopy(ren, tex_wr, NULL, &pieces[14]);
-		SDL_RenderCopy(ren, tex_wr, NULL, &pieces[15]);
-		SDL_RenderCopy(ren, tex_bb, NULL, &pieces[16]);
-		SDL_RenderCopy(ren, tex_bb, NULL, &pieces[17]);
-		SDL_RenderCopy(ren, tex_bk, NULL, &pieces[18]);
-		SDL_RenderCopy(ren, tex_bn, NULL, &pieces[19]);
-		SDL_RenderCopy(ren, tex_bn, NULL, &pieces[20]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[21]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[22]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[23]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[24]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[25]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[26]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[27]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[28]);
-		SDL_RenderCopy(ren, tex_bq, NULL, &pieces[29]);
-		SDL_RenderCopy(ren, tex_br, NULL, &pieces[30]);
-		SDL_RenderCopy(ren, tex_br, NULL, &pieces[31]);
+		SDL_RenderCopy(ren, tex_br, NULL, &pieces[0]);
+		SDL_RenderCopy(ren, tex_bn, NULL, &pieces[1]);
+		SDL_RenderCopy(ren, tex_bb, NULL, &pieces[2]);
+		SDL_RenderCopy(ren, tex_bq, NULL, &pieces[3]);
+		SDL_RenderCopy(ren, tex_bk, NULL, &pieces[4]);
+		SDL_RenderCopy(ren, tex_bb, NULL, &pieces[5]);
+		SDL_RenderCopy(ren, tex_bn, NULL, &pieces[6]);
+		SDL_RenderCopy(ren, tex_br, NULL, &pieces[7]);
+		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[8]);
+		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[9]);
+		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[10]);
+		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[11]);
+		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[12]);
+		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[13]);
+		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[14]);
+		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[15]);
+		SDL_RenderCopy(ren, tex_wr, NULL, &pieces[16]);
+		SDL_RenderCopy(ren, tex_wn, NULL, &pieces[17]);
+		SDL_RenderCopy(ren, tex_wb, NULL, &pieces[18]);
+		SDL_RenderCopy(ren, tex_wq, NULL, &pieces[19]);
+		SDL_RenderCopy(ren, tex_wk, NULL, &pieces[20]);
+		SDL_RenderCopy(ren, tex_wb, NULL, &pieces[21]);
+		SDL_RenderCopy(ren, tex_wn, NULL, &pieces[22]);
+		SDL_RenderCopy(ren, tex_wr, NULL, &pieces[23]);
+		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[24]);
+		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[25]);
+		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[26]);
+		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[27]);
+		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[28]);
+		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[29]);
+		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[30]);
+		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[31]);
 		//SDL_RenderCopy(ren, tex_message, NULL, &rect_message);
 		#pragma endregion
 		// можно изменить размеры/координаты фигуры, чтобы от неё избавиться, но ещё можно просто перестать её рендерить
