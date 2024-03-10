@@ -9,11 +9,12 @@ SDL_Renderer* ren = NULL;
 
 int size_field = 80;
 int size_piece = size_field;
-int miss = size_field / 10;
+int miss = size_field / 16;
 int height_font = 38;
 int fps = 150;
 int win_width = size_field * 8, win_height = size_field * 8;
-
+bool castling[6] = { true, true, true, true, true, true };
+// bk , b 0-0-0,  b 0-0, wk, w 0-0-0, w 0-0 
 void DeInit(int error)
 {
 	if (ren != NULL) SDL_DestroyRenderer(ren);
@@ -87,16 +88,14 @@ SDL_Texture* LoadTextureFromFile(const char* filename)
 }
 
 
-bool AvailableMove(int* chosen_field, int *become_field,  std::string table[8][8], SDL_Rect* pieces)
+bool AvailableMove(int* chosen_field, int *become_field,  std::string table[8][8])
 {
 	bool available_move = false;
 	switch (table[chosen_field[0]][chosen_field[1]][1])
 	{
 	case 'K':
 		if ((abs(chosen_field[0] - become_field[0]) <= 1) && (abs(chosen_field[1] - become_field[1]) <= 1))
-		{
 			available_move = true;
-		}
 		break;
 	case 'P':
 		if (table[chosen_field[0]][chosen_field[1]].find('w') != std::string::npos)
@@ -273,7 +272,7 @@ bool BitField(bool turn_move, int* king_field, int* become_field, std::string ta
 			if (turn_move) table[become_field[0]][become_field[1]] = "wK";
 			else table[become_field[0]][become_field[1]] = "bK";
 			table[king_field[0]][king_field[1]] = "--";
-			if (AvailableMove(chosen_field, become_field, table, pieces))
+			if (AvailableMove(chosen_field, become_field, table))
 			{
 				field_is_bit = true;
 				if (turn_move) table[king_field[0]][king_field[1]] = "wK";
@@ -323,7 +322,7 @@ bool Check1(bool turn_move, int* piece_chosen_field, int* become_field, std::str
 			std::string space = table[become_field[0]][become_field[1]];
 			table[become_field[0]][become_field[1]] = table[piece_chosen_field[0]][piece_chosen_field[1]];
 			table[piece_chosen_field[0]][piece_chosen_field[1]] = "--";
-			if (AvailableMove(chosen_field, king_field, table, pieces))
+			if (AvailableMove(chosen_field, king_field, table))
 			{
 				table[piece_chosen_field[0]][piece_chosen_field[1]] = table[become_field[0]][become_field[1]];
 				table[become_field[0]][become_field[1]] = space;
@@ -368,7 +367,7 @@ bool Check2(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 		{
 			chosen_field[0] = pieces[i].y / size_field;
 			chosen_field[1] = pieces[i].x / size_field;
-			if (AvailableMove(chosen_field, king_field, table, pieces))
+			if (AvailableMove(chosen_field, king_field, table))
 			{
 				check = true;
 				break;
@@ -377,7 +376,7 @@ bool Check2(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 	}
 	return check;
 }
-
+// turn_move = true - проверка на шах белым | turn_move = false - проеверка на шах чёрным
 
 bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 {
@@ -418,7 +417,7 @@ bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 					if (table[chosen_field[0]][chosen_field[1]].find('K') != std::string::npos)
 					{
 						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) &&
-							AvailableMove(chosen_field, become_field, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+							AvailableMove(chosen_field, become_field, table) && !BitField(turn_move, chosen_field, become_field, table, pieces))
 						{
 						
 							checkmate = false;
@@ -429,7 +428,7 @@ bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 					}
 					else
 					{
-						if (AvailableMove(chosen_field, become_field, table, pieces) &&
+						if (AvailableMove(chosen_field, become_field, table) &&
 							!Check1(turn_move, chosen_field, become_field, table, pieces))
 						{
 							checkmate = false;
@@ -524,9 +523,6 @@ int SDL_main(int argc, char* argv[])
 	bool turn_move = true;
 	bool available_move = false;
 
-	bool castling = true;
-	bool white_short_castling = true, white_long_castling = true, black_short_castling = true, black_long_castling = true;
-
 	/*TTF_Font* font = TTF_OpenFont("fonts/sylfaen.ttf", height_font);
 	char message[100] = "Checkmate! Do you want to play again?";
 	SDL_Surface* surf_message = TTF_RenderText_Blended(font, message, { 180, 0, 0, 255 });
@@ -598,10 +594,75 @@ int SDL_main(int argc, char* argv[])
 						(table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]))
 					{
 						if (table[chosen_field[0]][chosen_field[1]].find('K') != std::string::npos)
-							available_move = AvailableMove(chosen_field, become_field, table, pieces) &&
-							!BitField(turn_move, chosen_field, become_field, table, pieces);
+							if ((become_field[0] == 0) && (become_field[1] == 2) && castling[0] && castling[1] && (table[0][1] + table[0][2] +
+								table[0][3] == "------") && !Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+							{
+								become_field[1] = 3;
+								if (!BitField(turn_move, chosen_field, become_field, table, pieces) )
+								{
+									table[0][3] = "bR";
+									table[0][0] = "--";
+									pieces[0].x = 240;
+									pieces[0].y = 0;
+									castling[0] = false;
+									castling[1] = false;
+									available_move = true;
+									become_field[1] = 2;
+								}
+							}
+							else if ((become_field[0] == 0) && (become_field[1] == 6) && castling[0] && castling[2] && (table[0][5] + table[0][6] == "----") && 
+								!Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+							{
+								become_field[1] = 5;
+								if (!BitField(turn_move, chosen_field, become_field, table, pieces))
+								{
+									table[0][5] = "bR";
+									table[0][7] = "--";
+									pieces[7].x = 400;
+									pieces[7].y = 0;
+									castling[0] = false;
+									castling[2] = false;
+									available_move = true;
+									become_field[1] = 6;
+								}			
+							}
+							else if ((become_field[0] == 7) && (become_field[1] == 2) && castling[3] && castling[4] && (table[7][1] + table[7][2] +
+								table[7][3] == "------") && !Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+							{
+								become_field[1] = 3;
+								if (!BitField(turn_move, chosen_field, become_field, table, pieces))
+								{
+									table[7][3] = "wR";
+									table[7][0] = "--";
+									pieces[16].x = 240;
+									pieces[16].y = 560;
+									castling[3] = false;
+									castling[4] = false;
+									available_move = true;
+									become_field[1] = 2;
+								}
+							}
+							else if ((become_field[0] == 7) && (become_field[1] == 6) && castling[3] && castling[5] && (table[7][5] + table[7][6] == "----") &&
+								!Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+							{
+								become_field[1] = 5;
+								if (!BitField(turn_move, chosen_field, become_field, table, pieces))
+								{
+									table[7][5] = "wR";
+									table[7][7] = "--";
+									pieces[23].x = 400;
+									pieces[23].y = 560;
+									castling[3] = false;
+									castling[5] = false;
+									available_move = true;
+									become_field[1] = 6;
+								}
+							}
+							else
+								available_move = AvailableMove(chosen_field, become_field, table) &&
+								!BitField(turn_move, chosen_field, become_field, table, pieces);
 						else
-							available_move = AvailableMove(chosen_field, become_field, table, pieces) &&
+							available_move = AvailableMove(chosen_field, become_field, table) &&
 							!Check1(turn_move, chosen_field, become_field, table, pieces);
 						if (available_move)
 						{ 
@@ -624,6 +685,7 @@ int SDL_main(int argc, char* argv[])
 							table[chosen_field[0]][chosen_field[1]] = "--";
 							turn_move = !turn_move;
 							available_move = false;
+
 							for (int i = 0; i < 8; i++)
 							{
 								for (int j = 0; j < 8; j++)
@@ -631,6 +693,20 @@ int SDL_main(int argc, char* argv[])
 								std::cout << std::endl;
 							}
 							std::cout << std::endl;
+
+							if (!((pieces[4].x == 320) && (pieces[4].y == 0)))
+								castling[0] = false;
+							if (!((pieces[0].x == 0) && (pieces[0].y == 0)))
+								castling[1] = false;
+							if (!((pieces[7].x == 560) && (pieces[7].y == 0)))
+								castling[2] = false;
+							if (!((pieces[20].x == 320) && (pieces[20].y == 560)))
+								castling[3] = false;
+							if (!((pieces[16].x == 0) && (pieces[16].y == 560)))
+								castling[4] = false;
+							if (!((pieces[23].x == 560) && (pieces[23].y == 560)))
+								castling[5] = false;
+
 							if (Check2(turn_move, table, pieces))
 							{
 								if (Checkmate(turn_move, table, pieces))
