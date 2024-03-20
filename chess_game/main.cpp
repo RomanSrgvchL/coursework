@@ -10,11 +10,12 @@ SDL_Renderer* ren = NULL;
 int size_field = 80;
 int size_piece = size_field;
 int miss = size_field / 16;
-int height_font = 38;
+//int height_font = 38;
 int fps = 150;
 int win_width = size_field * 8, win_height = size_field * 8;
 bool castling[6] = { true, true, true, true, true, true };
 // bk , b 0-0-0,  b 0-0, wk, w 0-0-0, w 0-0 
+
 void DeInit(int error)
 {
 	if (ren != NULL) SDL_DestroyRenderer(ren);
@@ -335,7 +336,7 @@ bool Check1(bool turn_move, int* piece_chosen_field, int* become_field, std::str
 	}
 	return check;
 }
-
+// будет ли шах при таком ходе?
 
 bool Check2(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 {
@@ -376,7 +377,8 @@ bool Check2(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 	}
 	return check;
 }
-// turn_move = true - проверка на шах белым | turn_move = false - проеверка на шах чёрным
+// есть ли шах? (ход уже сделан)
+// turn_move == true - проверка на шах белым | turn_move == false - проеверка на шах чёрным
 
 bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 {
@@ -444,6 +446,12 @@ bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 }
 
 
+bool Stalemate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
+{
+	return false;
+}
+
+
 int SDL_main(int argc, char* argv[])
 {
 	Init();
@@ -479,6 +487,8 @@ int SDL_main(int argc, char* argv[])
 		{ "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"},
 	};
 
+	// 0 - 15 чёрные, 16 - 31 - белые
+	// 8 - 15 пешки, 24 - 31 пешки
 	#pragma region Destinations
 	SDL_Rect pieces[32];
 	pieces[0] = { 0 * size_field, 0 * size_field, size_piece, size_piece };
@@ -519,16 +529,10 @@ int SDL_main(int argc, char* argv[])
 	int chosen_field[2], become_field[2];
 	int dst_chosen_piece[2], dst_become_piece[2];
 	int number_chosen_piece;
+	int number_last_moved_piece;
 	
 	bool turn_move = true;
 	bool available_move = false;
-
-	/*TTF_Font* font = TTF_OpenFont("fonts/sylfaen.ttf", height_font);
-	char message[100] = "Checkmate! Do you want to play again?";
-	SDL_Surface* surf_message = TTF_RenderText_Blended(font, message, { 180, 0, 0, 255 });
-	SDL_Rect rect_message = { 0, 301, surf_message->w, surf_message->h };
-	SDL_Texture* tex_message = SDL_CreateTextureFromSurface(ren, surf_message);
-	SDL_FreeSurface(surf_message);*/
 
 	while (isRunning)
 	{
@@ -602,7 +606,7 @@ int SDL_main(int argc, char* argv[])
 								{
 									table[0][3] = "bR";
 									table[0][0] = "--";
-									pieces[0].x = 240;
+									pieces[0].x = 3 * size_field;
 									pieces[0].y = 0;
 									castling[0] = false;
 									castling[1] = false;
@@ -618,7 +622,7 @@ int SDL_main(int argc, char* argv[])
 								{
 									table[0][5] = "bR";
 									table[0][7] = "--";
-									pieces[7].x = 400;
+									pieces[7].x = 5 * size_field;
 									pieces[7].y = 0;
 									castling[0] = false;
 									castling[2] = false;
@@ -634,8 +638,8 @@ int SDL_main(int argc, char* argv[])
 								{
 									table[7][3] = "wR";
 									table[7][0] = "--";
-									pieces[16].x = 240;
-									pieces[16].y = 560;
+									pieces[16].x = 3 * size_field;
+									pieces[16].y = 7 * size_field;
 									castling[3] = false;
 									castling[4] = false;
 									available_move = true;
@@ -650,8 +654,8 @@ int SDL_main(int argc, char* argv[])
 								{
 									table[7][5] = "wR";
 									table[7][7] = "--";
-									pieces[23].x = 400;
-									pieces[23].y = 560;
+									pieces[23].x = 5 * size_field;
+									pieces[23].y = 7 * size_field;
 									castling[3] = false;
 									castling[5] = false;
 									available_move = true;
@@ -661,6 +665,54 @@ int SDL_main(int argc, char* argv[])
 							else
 								available_move = AvailableMove(chosen_field, become_field, table) &&
 								!BitField(turn_move, chosen_field, become_field, table, pieces);
+						else if ((table[chosen_field[0]][chosen_field[1]].find('P') != std::string::npos) && !Check1(turn_move, chosen_field, become_field, table, pieces) &&
+							(table[become_field[0]][become_field[1]] == "--"))
+						{
+							if (turn_move && (chosen_field[0] == 3) && (become_field[0] == 2) && (abs(chosen_field[1] - become_field[1]) == 1) &&
+								(table[chosen_field[0]][become_field[1]] == "bP"))
+							{
+								for (int i = 8; i < 16; i++)
+								{
+									if ((pieces[i].x == dst_become_piece[0]) && (pieces[i].y == dst_become_piece[1] + size_field))
+									{
+										if (i == number_last_moved_piece)
+										{
+											pieces[i].x = -100;
+											pieces[i].y = -100;
+											available_move = true;
+											table[chosen_field[0]][become_field[1]] = "--";
+										}
+										else
+											available_move = AvailableMove(chosen_field, become_field, table);
+										break;
+									}
+								}
+								
+							}
+							else if (!turn_move && (chosen_field[0] == 4) && (become_field[0] == 5) && (abs(chosen_field[1] - become_field[1]) == 1) &&
+								(table[chosen_field[0]][become_field[1]] == "wP"))
+							{
+								for (int i = 24; i < 32; i++)
+								{
+									if ((pieces[i].x == dst_become_piece[0]) && (pieces[i].y == dst_become_piece[1] - size_field))
+									{
+										if (i == number_last_moved_piece)
+										{
+											pieces[i].x = -100;
+											pieces[i].y = -100;
+											available_move = true;
+											table[chosen_field[0]][become_field[1]] = "--";
+											
+										}
+										else
+											available_move = AvailableMove(chosen_field, become_field, table);
+										break;
+									}
+								}
+							}
+							else
+								available_move = AvailableMove(chosen_field, become_field, table);
+						}
 						else
 							available_move = AvailableMove(chosen_field, become_field, table) &&
 							!Check1(turn_move, chosen_field, become_field, table, pieces);
@@ -685,6 +737,7 @@ int SDL_main(int argc, char* argv[])
 							table[chosen_field[0]][chosen_field[1]] = "--";
 							turn_move = !turn_move;
 							available_move = false;
+							number_last_moved_piece = number_chosen_piece;
 
 							for (int i = 0; i < 8; i++)
 							{
@@ -694,17 +747,17 @@ int SDL_main(int argc, char* argv[])
 							}
 							std::cout << std::endl;
 
-							if (!((pieces[4].x == 320) && (pieces[4].y == 0)))
+							if (!((pieces[4].x == 4 * size_field) && (pieces[4].y == 0)))
 								castling[0] = false;
 							if (!((pieces[0].x == 0) && (pieces[0].y == 0)))
 								castling[1] = false;
-							if (!((pieces[7].x == 560) && (pieces[7].y == 0)))
+							if (!((pieces[7].x == 7 * size_field) && (pieces[7].y == 0)))
 								castling[2] = false;
-							if (!((pieces[20].x == 320) && (pieces[20].y == 560)))
+							if (!((pieces[20].x == 4 * size_field) && (pieces[20].y == 7 * size_field)))
 								castling[3] = false;
-							if (!((pieces[16].x == 0) && (pieces[16].y == 560)))
+							if (!((pieces[16].x == 0) && (pieces[16].y == 7 * size_field)))
 								castling[4] = false;
-							if (!((pieces[23].x == 560) && (pieces[23].y == 560)))
+							if (!((pieces[23].x == 7 * size_field) && (pieces[23].y == 7 * size_field)))
 								castling[5] = false;
 
 							if (Check2(turn_move, table, pieces))
@@ -715,12 +768,20 @@ int SDL_main(int argc, char* argv[])
 									if (turn_move) winner = "black";
 									std::cout << "checkmate, " << winner << " won" << "\n\n";
 									for (int i = 0; i < 8; i++)
-										for (int j = 0; j < 8; j++) {
+										for (int j = 0; j < 8; j++)
 											table[i][j] = "00";
-										}
 								}
 								else std::cout << "check" << "\n";
 							}
+
+							if (Stalemate(turn_move, table, pieces))
+							{
+								std::cout << "stalemate" << "\n\n";
+								for (int i = 0; i < 8; i++)
+									for (int j = 0; j < 8; j++)
+										table[i][j] = "00";
+							}
+
 						}
 						else
 						{
@@ -791,10 +852,10 @@ int SDL_main(int argc, char* argv[])
 		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[29]);
 		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[30]);
 		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[31]);
-		//SDL_RenderCopy(ren, tex_message, NULL, &rect_message);
 		#pragma endregion
 		// можно изменить размеры/координаты фигуры, чтобы от неё избавиться, но ещё можно просто перестать её рендерить
 		// но в таком случае нужно будет постоянно проверять, находится ли фигура на доске, что сильно затратно
+		// можно оставить спарава места и класть туда фигуры, показывать время, выигранный материал и тд
 
 		SDL_RenderPresent(ren);
 
@@ -814,10 +875,9 @@ int SDL_main(int argc, char* argv[])
 	SDL_DestroyTexture(tex_bq);
 	SDL_DestroyTexture(tex_br);
 	SDL_DestroyTexture(tex_board);
-	//SDL_DestroyTexture(tex_message);
+	
 	#pragma endregion
 
-	//TTF_CloseFont(font);
 	DeInit(0);
 	return 0;
 }
