@@ -523,6 +523,8 @@ int SDL_main(int argc, char* argv[])
 	};
 	#pragma endregion
 	bool isRunning = true;
+	bool isCastling = false;
+	bool isEnPassant = false;
 	SDL_Event ev;
 	SDL_Rect rect_board = { 0, 0, win_width, win_height };
 	
@@ -641,6 +643,8 @@ int SDL_main(int argc, char* argv[])
 			case SDL_MOUSEBUTTONUP:
 				if (ev.button.button == SDL_BUTTON_LEFT)
 				{
+					isCastling = false;
+					isEnPassant = false;
 					become_field[0] = ev.button.y / size_field;
 					become_field[1] = ev.button.x / size_field;
 					dst_become_piece[0] = become_field[1] * size_field;
@@ -649,6 +653,7 @@ int SDL_main(int argc, char* argv[])
 						!((become_field[0] == chosen_field[0]) && (become_field[1] == chosen_field[1])) && 
 						(table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]))
 					{
+						// рокировка
 						if (table[chosen_field[0]][chosen_field[1]].find('K') != std::string::npos)
 							if ((become_field[0] == 0) && (become_field[1] == 2) && castling[0] && castling[1] && (table[0][1] + table[0][2] +
 								table[0][3] == "------") && !Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
@@ -664,6 +669,7 @@ int SDL_main(int argc, char* argv[])
 									castling[1] = false;
 									available_move = true;
 									become_field[1] = 2;
+									isCastling = true;
 								}
 							}
 							else if ((become_field[0] == 0) && (become_field[1] == 6) && castling[0] && castling[2] && (table[0][5] + table[0][6] == "----") && 
@@ -680,6 +686,7 @@ int SDL_main(int argc, char* argv[])
 									castling[2] = false;
 									available_move = true;
 									become_field[1] = 6;
+									isCastling = true;
 								}			
 							}
 							else if ((become_field[0] == 7) && (become_field[1] == 2) && castling[3] && castling[4] && (table[7][1] + table[7][2] +
@@ -696,6 +703,7 @@ int SDL_main(int argc, char* argv[])
 									castling[4] = false;
 									available_move = true;
 									become_field[1] = 2;
+									isCastling = true;
 								}
 							}
 							else if ((become_field[0] == 7) && (become_field[1] == 6) && castling[3] && castling[5] && (table[7][5] + table[7][6] == "----") &&
@@ -712,11 +720,13 @@ int SDL_main(int argc, char* argv[])
 									castling[5] = false;
 									available_move = true;
 									become_field[1] = 6;
+									isCastling = true;
 								}
 							}
 							else
 								available_move = AvailableMove(chosen_field, become_field, table) &&
 								!BitField(turn_move, chosen_field, become_field, table, pieces);
+						// взятие на проходе
 						else if ((table[chosen_field[0]][chosen_field[1]].find('P') != std::string::npos) && !Check1(turn_move, chosen_field, become_field, table, pieces) &&
 							(table[become_field[0]][become_field[1]] == "--"))
 						{
@@ -733,6 +743,7 @@ int SDL_main(int argc, char* argv[])
 											pieces[i].y = -100;
 											available_move = true;
 											table[chosen_field[0]][become_field[1]] = "--";
+											isEnPassant = true;
 										}
 										else
 											available_move = AvailableMove(chosen_field, become_field, table);
@@ -754,7 +765,7 @@ int SDL_main(int argc, char* argv[])
 											pieces[i].y = -100;
 											available_move = true;
 											table[chosen_field[0]][become_field[1]] = "--";
-											
+											isEnPassant = true;
 										}
 										else
 											available_move = AvailableMove(chosen_field, become_field, table);
@@ -770,7 +781,9 @@ int SDL_main(int argc, char* argv[])
 							!Check1(turn_move, chosen_field, become_field, table, pieces);
 						if (available_move)
 						{ 
-							std::cout << "you moved the " << table[chosen_field[0]][chosen_field[1]] << "\n\n";
+							if (isCastling) std::cout << "you castled" << "\n\n";
+							else if (isEnPassant) std::cout << "you captured en passant" << "\n\n";
+							else std::cout << "you moved the " << table[chosen_field[0]][chosen_field[1]] << "\n\n";
 							if (table[become_field[0]][become_field[1]] != "--")
 							{
 								for (int i = 0; i < 32; i++)
