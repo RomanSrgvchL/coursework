@@ -1,8 +1,7 @@
 #include <iostream>
 #include <SDL.h>
 #include <SDL_image.h>
-#include <SDL_ttf.h>
-#include <math.h> 
+#include <SDL_ttf.h> 
 
 SDL_Window* win = NULL;
 SDL_Renderer* ren = NULL;
@@ -430,8 +429,8 @@ bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 					}
 					else
 					{
-						if (AvailableMove(chosen_field, become_field, table) &&
-							!Check1(turn_move, chosen_field, become_field, table, pieces))
+						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) && 
+							AvailableMove(chosen_field, become_field, table) && !Check1(turn_move, chosen_field, become_field, table, pieces))
 						{
 							checkmate = false;
 							n = 8;
@@ -448,6 +447,52 @@ bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 
 bool Stalemate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 {
+	/*bool stalemate = true;
+	int chosen_field[2];
+	int become_field[2];
+	int i = 0, max = 16;
+	if (turn_move)
+	{
+		i = 16;
+		max = 32;
+	}
+	for (i; i < max; i++)
+	{
+		if (pieces[i].x != -100)
+		{
+			chosen_field[0] = pieces[i].y / size_field;
+			chosen_field[1] = pieces[i].x / size_field;
+			for (int n = 0; n < 8; n++)
+				for (int m = 0; m < 8; m++)
+				{
+					become_field[0] = n;
+					become_field[1] = m;
+					if (table[chosen_field[0]][chosen_field[1]].find('K') != std::string::npos)
+					{
+						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) &&
+							AvailableMove(chosen_field, become_field, table) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+						{
+							stalemate = false;
+							n = 8;
+							i = max;
+							break;
+						}
+					}
+					else
+					{
+						if (AvailableMove(chosen_field, become_field, table) &&
+							!Check1(turn_move, chosen_field, become_field, table, pieces))
+						{
+							stalemate = false;
+							n = 8;
+							i = max;
+							break;
+						}
+					}
+				}
+		}
+	}
+	return stalemate;*/
 	return false;
 }
 
@@ -470,12 +515,17 @@ int SDL_main(int argc, char* argv[])
 	SDL_Texture* tex_bq = LoadTextureFromFile("pictures/bq.png");
 	SDL_Texture* tex_br = LoadTextureFromFile("pictures/br.png");
 	SDL_Texture* tex_board = LoadTextureFromFile("pictures/green.png");
+	SDL_Texture* textures[32] = {
+			tex_br, tex_bn, tex_bb, tex_bq, tex_bk, tex_bb, tex_bn, tex_br,
+			tex_bp, tex_bp, tex_bp, tex_bp, tex_bp, tex_bp, tex_bp, tex_bp,
+			tex_wr, tex_wn, tex_wb, tex_wq, tex_wk, tex_wb, tex_wn, tex_wr,
+			tex_wp, tex_wp, tex_wp, tex_wp, tex_wp, tex_wp, tex_wp, tex_wp
+	};
 	#pragma endregion
-
 	bool isRunning = true;
 	SDL_Event ev;
 	SDL_Rect rect_board = { 0, 0, win_width, win_height };
-
+	
 	std::string table[8][8] = {
 		{ "bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR"},
 		{ "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP"},
@@ -530,6 +580,7 @@ int SDL_main(int argc, char* argv[])
 	int dst_chosen_piece[2], dst_become_piece[2];
 	int number_chosen_piece;
 	int number_last_moved_piece;
+	int chosen_index = 0;
 	
 	bool turn_move = true;
 	bool available_move = false;
@@ -568,6 +619,7 @@ int SDL_main(int argc, char* argv[])
 								{
 									if ((pieces[i].x == dst_chosen_piece[0]) && (pieces[i].y == dst_chosen_piece[1]))
 									{
+										chosen_index = i;
 										number_chosen_piece = i;
 										break;
 									}
@@ -781,7 +833,6 @@ int SDL_main(int argc, char* argv[])
 									for (int j = 0; j < 8; j++)
 										table[i][j] = "00";
 							}
-
 						}
 						else
 						{
@@ -820,62 +871,29 @@ int SDL_main(int argc, char* argv[])
 
 		#pragma region RenderCopy
 		SDL_RenderCopy(ren, tex_board, NULL, &rect_board);
-		SDL_RenderCopy(ren, tex_br, NULL, &pieces[0]);
-		SDL_RenderCopy(ren, tex_bn, NULL, &pieces[1]);
-		SDL_RenderCopy(ren, tex_bb, NULL, &pieces[2]);
-		SDL_RenderCopy(ren, tex_bq, NULL, &pieces[3]);
-		SDL_RenderCopy(ren, tex_bk, NULL, &pieces[4]);
-		SDL_RenderCopy(ren, tex_bb, NULL, &pieces[5]);
-		SDL_RenderCopy(ren, tex_bn, NULL, &pieces[6]);
-		SDL_RenderCopy(ren, tex_br, NULL, &pieces[7]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[8]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[9]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[10]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[11]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[12]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[13]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[14]);
-		SDL_RenderCopy(ren, tex_bp, NULL, &pieces[15]);
-		SDL_RenderCopy(ren, tex_wr, NULL, &pieces[16]);
-		SDL_RenderCopy(ren, tex_wn, NULL, &pieces[17]);
-		SDL_RenderCopy(ren, tex_wb, NULL, &pieces[18]);
-		SDL_RenderCopy(ren, tex_wq, NULL, &pieces[19]);
-		SDL_RenderCopy(ren, tex_wk, NULL, &pieces[20]);
-		SDL_RenderCopy(ren, tex_wb, NULL, &pieces[21]);
-		SDL_RenderCopy(ren, tex_wn, NULL, &pieces[22]);
-		SDL_RenderCopy(ren, tex_wr, NULL, &pieces[23]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[24]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[25]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[26]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[27]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[28]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[29]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[30]);
-		SDL_RenderCopy(ren, tex_wp, NULL, &pieces[31]);
+		for (int i = 0; i < 32; i++) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
+		for (int i = 0; i < 32; i++)
+			if (i == chosen_index) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
 		#pragma endregion
-		// можно изменить размеры/координаты фигуры, чтобы от неё избавиться, но ещё можно просто перестать её рендерить
-		// но в таком случае нужно будет постоянно проверять, находится ли фигура на доске, что сильно затратно
-		// можно оставить спарава места и класть туда фигуры, показывать время, выигранный материал и тд
 
 		SDL_RenderPresent(ren);
-
 		SDL_Delay(1000/fps);
 	}
+
 	#pragma region DestroyTexture
-	SDL_DestroyTexture(tex_wb);
-	SDL_DestroyTexture(tex_wk);
-	SDL_DestroyTexture(tex_wn);
-	SDL_DestroyTexture(tex_wp);
-	SDL_DestroyTexture(tex_wq);
-	SDL_DestroyTexture(tex_wr);
 	SDL_DestroyTexture(tex_bb);
 	SDL_DestroyTexture(tex_bk);
 	SDL_DestroyTexture(tex_bn);
 	SDL_DestroyTexture(tex_bp);
 	SDL_DestroyTexture(tex_bq);
 	SDL_DestroyTexture(tex_br);
+	SDL_DestroyTexture(tex_wb);
+	SDL_DestroyTexture(tex_wk);
+	SDL_DestroyTexture(tex_wn);
+	SDL_DestroyTexture(tex_wp);
+	SDL_DestroyTexture(tex_wq);
+	SDL_DestroyTexture(tex_wr);
 	SDL_DestroyTexture(tex_board);
-	
 	#pragma endregion
 
 	DeInit(0);
