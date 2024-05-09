@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h> 
@@ -9,7 +10,6 @@ SDL_Renderer* ren = NULL;
 int size_field = 80;
 int size_piece = size_field;
 int miss = size_field / 16;
-//int height_font = 38;
 int fps = 150;
 int win_width = size_field * 8, win_height = size_field * 8;
 bool castling[6] = { true, true, true, true, true, true };
@@ -273,10 +273,7 @@ bool BitField(bool turn_move, int* king_field, int* become_field, std::string ta
 			if (AvailableMove(chosen_field, become_field, table))
 			{
 				field_is_bit = true;
-				if (turn_move) table[king_field[0]][king_field[1]] = "wK";
-				else table[king_field[0]][king_field[1]] = "bK";
-				table[become_field[0]][become_field[1]] = space;
-				break;
+				i = max;
 			}
 			if (turn_move) table[king_field[0]][king_field[1]] = "wK";
 			else table[king_field[0]][king_field[1]] = "bK";
@@ -377,123 +374,6 @@ bool Check2(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 }
 
 
-bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
-{
-	int king_field[2];
-	std::string find_field = "bK";
-	int i = 0, max = 16;
-	if (turn_move)
-	{
-		find_field = "wK";
-		i = 16;
-		max = 32;
-	}
-	for (int i = 0; i < 8; i++)
-	{
-		for (int j = 0; j < 8; j++)
-			if (table[i][j] == find_field)
-			{
-				king_field[0] = i;
-				king_field[1] = j;
-				i = 8;
-				break;
-			}
-	}
-	bool checkmate = true;
-	int chosen_field[2];
-	int become_field[2];
-	for (i; i < max; i++)
-	{
-		if (pieces[i].x != -100)
-		{
-			chosen_field[0] = pieces[i].y / size_field;
-			chosen_field[1] = pieces[i].x / size_field;
-			for (int n = 0; n < 8; n++)
-				for (int m = 0; m < 8; m++)
-				{
-					become_field[0] = n;
-					become_field[1] = m;
-					if (table[chosen_field[0]][chosen_field[1]].find('K') != std::string::npos)
-					{
-						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) &&
-							AvailableMove(chosen_field, become_field, table) && !BitField(turn_move, chosen_field, become_field, table, pieces))
-						{
-							checkmate = false;
-							n = 8;
-							i = max;
-							break;
-						}
-					}
-					else
-					{
-						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) && 
-							AvailableMove(chosen_field, become_field, table) && !Check1(turn_move, chosen_field, become_field, table, pieces))
-						{
-							checkmate = false;
-							n = 8;
-							i = max;
-							break;
-						}
-					}
-				}
-		}
-	}
-	return checkmate;
-}
-
-
-bool Stalemate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
-{
-	/*bool stalemate = true;
-	int chosen_field[2];
-	int become_field[2];
-	int i = 0, max = 16;
-	if (turn_move)
-	{
-		i = 16;
-		max = 32;
-	}
-	for (i; i < max; i++)
-	{
-		if (pieces[i].x != -100)
-		{
-			chosen_field[0] = pieces[i].y / size_field;
-			chosen_field[1] = pieces[i].x / size_field;
-			for (int n = 0; n < 8; n++)
-				for (int m = 0; m < 8; m++)
-				{
-					become_field[0] = n;
-					become_field[1] = m;
-					if (table[chosen_field[0]][chosen_field[1]].find('K') != std::string::npos)
-					{
-						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) &&
-							AvailableMove(chosen_field, become_field, table) && !BitField(turn_move, chosen_field, become_field, table, pieces))
-						{
-							stalemate = false;
-							n = 8;
-							i = max;
-							break;
-						}
-					}
-					else
-					{
-						if (AvailableMove(chosen_field, become_field, table) &&
-							!Check1(turn_move, chosen_field, become_field, table, pieces))
-						{
-							stalemate = false;
-							n = 8;
-							i = max;
-							break;
-						}
-					}
-				}
-		}
-	}
-	return stalemate;*/
-	return false;
-}
-
-
 void CheckCastling(bool turn_move, int* become_field, std::string table[8][8], SDL_Rect* pieces, int* chosen_field, bool* available_move, bool* isCastling)
 {
 	if ((become_field[0] == 0) && (become_field[1] == 2) && castling[0] && castling[1] && (table[0][1] + table[0][2] +
@@ -570,7 +450,7 @@ void CheckCastling(bool turn_move, int* become_field, std::string table[8][8], S
 }
 
 
-void CheckEnPassant(bool turn_move, int* become_field, std::string table[8][8], SDL_Rect* pieces, int* chosen_field, bool* available_move, bool* isEnPassant,int* dst_become_piece, int n)
+void CheckEnPassant(bool turn_move, int* become_field, std::string table[8][8], SDL_Rect* pieces, int* chosen_field, bool* available_move, bool* isEnPassant, int* dst_become_piece, int n)
 {
 	if (turn_move && (chosen_field[0] == 3) && (become_field[0] == 2) && (abs(chosen_field[1] - become_field[1]) == 1) &&
 		(table[chosen_field[0]][become_field[1]] == "bP"))
@@ -594,7 +474,7 @@ void CheckEnPassant(bool turn_move, int* become_field, std::string table[8][8], 
 				else *available_move = AvailableMove(chosen_field, become_field, table);
 				break;
 			}
-			}
+		}
 	}
 	else if (!turn_move && (chosen_field[0] == 4) && (become_field[0] == 5) && (abs(chosen_field[1] - become_field[1]) == 1) &&
 		(table[chosen_field[0]][become_field[1]] == "wP"))
@@ -623,6 +503,145 @@ void CheckEnPassant(bool turn_move, int* become_field, std::string table[8][8], 
 	else
 		*available_move = AvailableMove(chosen_field, become_field, table) &&
 		!Check1(turn_move, chosen_field, become_field, table, pieces);
+}
+
+
+bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
+{
+	int king_field[2];
+	std::string find_field = "bK";
+	int i = 0, max = 16;
+	if (turn_move)
+	{
+		find_field = "wK";
+		i = 16;
+		max = 32;
+	}
+	for (int i = 0; i < 8; i++)
+	{
+		for (int j = 0; j < 8; j++)
+			if (table[i][j] == find_field)
+			{
+				king_field[0] = i;
+				king_field[1] = j;
+				i = 8;
+				break;
+			}
+	}
+	bool checkmate = true;
+	int chosen_field[2];
+	int become_field[2];
+	for (i; i < max; i++)
+	{
+		if (pieces[i].x != -100)
+		{
+			chosen_field[0] = pieces[i].y / size_field;
+			chosen_field[1] = pieces[i].x / size_field;
+			for (int n = 0; n < 8; n++)
+				for (int m = 0; m < 8; m++)
+				{
+					become_field[0] = n;
+					become_field[1] = m;
+					if (table[chosen_field[0]][chosen_field[1]].find('K') != std::string::npos)
+					{
+						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) &&
+							AvailableMove(chosen_field, become_field, table) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+						{
+							checkmate = false;
+							n = 8;
+							i = max;
+							break;
+						}
+					}
+					else
+					{
+						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) && 
+							AvailableMove(chosen_field, become_field, table) && !Check1(turn_move, chosen_field, become_field, table, pieces))
+						{
+							checkmate = false;
+							n = 8;
+							i = max;
+							break;
+						}
+					}
+				}
+		}
+	}
+	return checkmate;
+}
+
+
+bool Stalemate(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
+{
+	// рассмотреть возможность взятия на проходе
+	bool stalemate = true;
+	int chosen_field[2];
+	int become_field[2];
+	int i = 0, max = 16;
+	if (turn_move)
+	{
+		i = 16;
+		max = 32;
+	}
+	for (i; i < max; i++)
+	{
+		if (pieces[i].x != -100)
+		{
+			chosen_field[0] = pieces[i].y / size_field;
+			chosen_field[1] = pieces[i].x / size_field;
+			for (int n = 0; n < 8; n++)
+				for (int m = 0; m < 8; m++)
+				{
+					become_field[0] = n;
+					become_field[1] = m;
+					if (table[chosen_field[0]][chosen_field[1]].find('K') != std::string::npos)
+					{
+						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) &&
+							AvailableMove(chosen_field, become_field, table) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+						{
+							stalemate = false;
+							n = 8;
+							i = max;
+							break;
+						}
+					}
+					else
+					{
+						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) &&
+							AvailableMove(chosen_field, become_field, table) && !Check1(turn_move, chosen_field, become_field, table, pieces))
+						{
+							stalemate = false;
+							n = 8;
+							i = max;
+							break;
+						}
+					}
+				}
+		}
+	}
+	return stalemate;
+}
+
+
+bool Draw(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
+{
+	std::vector <std::string> white_pieces = { "K" }, black_pieces = { "K" };
+	bool draw = false;
+
+	for (int i = 0; i < 8; i++)
+		for (int j = 0; j < 8; j++)
+		{
+			if (table[i][j] == "wB") white_pieces.push_back("B");
+			else if (table[i][j] == "bB") black_pieces.push_back("B");
+			else if (table[i][j] == "wN") white_pieces.push_back("N");
+			else if (table[i][j] == "bN") black_pieces.push_back("N");
+			else if ((table[i][j][1] != 'K') && (table[i][j] != "--")) return false;
+		}
+
+	if ((white_pieces.size() <= 2) && (black_pieces.size() <= 2) && ((black_pieces.back() == "N") || (black_pieces.back() == "B") || (black_pieces.back() == "K")) && 
+		((white_pieces.back() == "N") || (white_pieces.back() == "B") || (white_pieces.back() == "K"))) draw = true;
+
+	return draw;
 }
 
 
@@ -836,7 +855,15 @@ int SDL_main(int argc, char* argv[])
 							if (!((pieces[23].x == 7 * size_field) && (pieces[23].y == 7 * size_field)))
 								castling[5] = false;
 
-							if (Check2(turn_move, table, pieces))
+							if (Draw(turn_move, table, pieces))
+							{
+								std::cout << "draw" << "\n\n";
+								for (int i = 0; i < 8; i++)
+									for (int j = 0; j < 8; j++)
+										table[i][j] = "00";
+							}
+							
+							else if (Check2(turn_move, table, pieces))
 							{
 								if (Checkmate(turn_move, table, pieces))
 								{
@@ -850,13 +877,14 @@ int SDL_main(int argc, char* argv[])
 								else std::cout << "check" << "\n\n";
 							}
 
-							if (Stalemate(turn_move, table, pieces))
+							else if (Stalemate(turn_move, table, pieces))
 							{
 								std::cout << "stalemate" << "\n\n";
 								for (int i = 0; i < 8; i++)
 									for (int j = 0; j < 8; j++)
 										table[i][j] = "00";
 							}
+
 						}
 						else
 						{
