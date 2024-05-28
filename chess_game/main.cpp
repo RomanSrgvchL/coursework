@@ -9,11 +9,10 @@ SDL_Renderer* ren = NULL;
 
 int size_field = 80;
 int size_piece = size_field;
-int miss = 0;
+int miss = 5;
 int fps = 150;
 int win_width = size_field * 8, win_height = size_field * 8;
 bool castling[6] = { true, true, true, true, true, true };
-// bk , b 0-0-0,  b 0-0, wk, w 0-0-0, w 0-0 
 
 void DeInit(int error)
 {
@@ -286,7 +285,6 @@ bool BitField(bool turn_move, int* king_field, int* become_field, std::string ta
 
 bool Check1(bool turn_move, int* piece_chosen_field, int* become_field, std::string table[8][8], SDL_Rect* pieces)
 {
-	// будет ли шах при таком ходе?
 	int king_field[2];
 	std::string find_field = "bK";
 	int i = 16, max = 32;
@@ -333,8 +331,6 @@ bool Check1(bool turn_move, int* piece_chosen_field, int* become_field, std::str
 
 bool Check2(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 {
-	// есть ли шах? (ход уже сделан)
-	// turn_move == true - проверка на шах белым | turn_move == false - проеверка на шах чёрным
 	int king_field[2];
 	std::string find_field = "bK";
 	int i = 16, max = 32;
@@ -699,7 +695,6 @@ bool Stalemate(bool turn_move, std::string table[8][8], SDL_Rect* pieces, int nu
 bool Draw(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 {
 	std::vector <std::string> white_pieces = { "K" }, black_pieces = { "K" };
-	bool draw = false;
 
 	for (int i = 0; i < 8; i++)
 		for (int j = 0; j < 8; j++)
@@ -711,10 +706,7 @@ bool Draw(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 			else if ((table[i][j][1] != 'K') && (table[i][j] != "--")) return false;
 		}
 
-	if ((white_pieces.size() <= 2) && (black_pieces.size() <= 2) && ((black_pieces.back() == "N") || (black_pieces.back() == "B") || (black_pieces.back() == "K")) && 
-		((white_pieces.back() == "N") || (white_pieces.back() == "B") || (white_pieces.back() == "K"))) draw = true;
-
-	return draw;
+	if ((white_pieces.size() <= 2) && (black_pieces.size() <= 2)) return true;
 }
 
 
@@ -760,8 +752,8 @@ int SDL_main(int argc, char* argv[])
 		{ "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"},
 	};
 
-	// 0 - 15 чёрные, 16 - 31 - белые
-	// 8 - 15 пешки, 24 - 31 пешки
+	// 0 - 15 black, 16 - 31 white
+	// 8 - 15 pawns, 24 - 31 pawns
 	#pragma region Destinations
 	SDL_Rect pieces[32];
 	pieces[0] = { 0 * size_field, 0 * size_field, size_piece, size_piece };
@@ -802,7 +794,7 @@ int SDL_main(int argc, char* argv[])
 	int chosen_field[2], become_field[2];
 	int dst_chosen_piece[2], dst_become_piece[2];
 	int number_chosen_piece;
-	int number_last_moved_piece = -1;
+	int num_last_moved_piece = -1;
 	
 	bool chosen = false;
 	bool turn_move = true;
@@ -875,7 +867,7 @@ int SDL_main(int argc, char* argv[])
 						if (table[chosen_field[0]][chosen_field[1]][1] == 'K')
 							CheckCastling(turn_move, become_field, table, pieces, chosen_field, &available_move, &isCastling);
 						else if ((table[chosen_field[0]][chosen_field[1]][1] == 'P') && (table[become_field[0]][become_field[1]] == "--"))
-							CheckEnPassant1(turn_move, table, pieces, chosen_field, become_field, &available_move, &isEnPassant, dst_become_piece, number_last_moved_piece);
+							CheckEnPassant1(turn_move, table, pieces, chosen_field, become_field, &available_move, &isEnPassant, dst_become_piece, num_last_moved_piece);
 						else
 							available_move = AvailableMove(chosen_field, become_field, table) &&
 							!Check1(turn_move, chosen_field, become_field, table, pieces);
@@ -902,8 +894,25 @@ int SDL_main(int argc, char* argv[])
 							table[chosen_field[0]][chosen_field[1]] = "--";
 							turn_move = !turn_move;
 							available_move = false;
-							number_last_moved_piece = number_chosen_piece;
+							num_last_moved_piece = number_chosen_piece;
 							
+							if (turn_move && (num_last_moved_piece >= 8) && (num_last_moved_piece <= 16))
+							{
+								if (become_field[0] == 7)
+								{
+									textures[num_last_moved_piece] = tex_bq;
+									table[become_field[0]][become_field[1]] = "bQ";
+								}
+							}		
+							else if (!turn_move && (num_last_moved_piece >= 24) && (num_last_moved_piece <= 32))
+							{
+								if (become_field[0] == 0)
+								{
+									textures[num_last_moved_piece] = tex_wq;
+									table[become_field[0]][become_field[1]] = "wQ";
+								}
+							}					
+
 							std::cout << "--------------------------" << std::endl;
 							for (int i = 0; i < 8; i++)
 							{
@@ -926,7 +935,7 @@ int SDL_main(int argc, char* argv[])
 							if (!((pieces[16].x == 0) && (pieces[16].y == 7 * size_field)))
 								castling[4] = false;
 							if (!((pieces[23].x == 7 * size_field) && (pieces[23].y == 7 * size_field)))
-								castling[5] = false;
+								castling[5] = false;		
 
 							if (Draw(turn_move, table, pieces))
 							{
@@ -938,7 +947,7 @@ int SDL_main(int argc, char* argv[])
 							
 							else if (Check2(turn_move, table, pieces))
 							{
-								if (Checkmate(turn_move, table, pieces, number_last_moved_piece))
+								if (Checkmate(turn_move, table, pieces, num_last_moved_piece))
 								{
 									std::string winner = "white";
 									if (turn_move) winner = "black";
@@ -950,7 +959,7 @@ int SDL_main(int argc, char* argv[])
 								else std::cout << "check" << "\n\n";
 							}
 
-							else if (Stalemate(turn_move, table, pieces, number_last_moved_piece))
+							else if (Stalemate(turn_move, table, pieces, num_last_moved_piece))
 							{
 								std::cout << "stalemate" << "\n\n";
 								for (int i = 0; i < 8; i++)
@@ -1019,4 +1028,5 @@ int SDL_main(int argc, char* argv[])
 	#pragma endregion
 
 	DeInit(0);
+	return 0;
 }
