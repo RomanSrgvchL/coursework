@@ -3,9 +3,12 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h> 
+#include <SDL_mixer.h>
 
 SDL_Window* win = NULL;
 SDL_Renderer* ren = NULL;
+Mix_Music* background = NULL;
+Mix_Chunk* sound = NULL;
 
 int size_field = 80;
 int size_piece = size_field;
@@ -18,6 +21,7 @@ void DeInit(int error)
 {
 	if (ren != NULL) SDL_DestroyRenderer(ren);
 	if (win != NULL) SDL_DestroyWindow(win);
+	Mix_Quit();
 	TTF_Quit();
 	IMG_Quit();
 	SDL_Quit();
@@ -27,7 +31,7 @@ void DeInit(int error)
 
 void Init()
 {
-	if (SDL_Init(SDL_INIT_VIDEO) != 0)
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0)
 	{
 		std::cout << "Couldn't init SDL! Error: " << SDL_GetError() << std::endl;;
 		system("pause");
@@ -69,6 +73,30 @@ void Init()
 		system("pause");
 		DeInit(1);
 	}
+
+	Mix_Init(0);
+	Mix_OpenAudio(22050, MIX_DEFAULT_FORMAT, 2, 1024);
+}
+
+
+void LoadMusic()
+{
+	background = Mix_LoadMUS("music/background2_1.mp3");
+	Mix_PlayMusic(background, -1);
+}
+
+
+void Sound0(std::string name_file)
+{
+	sound = Mix_LoadWAV(name_file.c_str());
+	Mix_PlayChannel(0, sound, 0);
+}
+
+
+void Sound1(std::string name_file)
+{
+	sound = Mix_LoadWAV(name_file.c_str());
+	Mix_PlayChannel(-1, sound, 0);
 }
 
 
@@ -800,6 +828,8 @@ int SDL_main(int argc, char* argv[])
 	bool turn_move = true;
 	bool available_move = false;
 
+	LoadMusic();
+
 	while (isRunning)
 	{
 		while (SDL_PollEvent(&ev))
@@ -876,6 +906,11 @@ int SDL_main(int argc, char* argv[])
 							if (isCastling) std::cout << "you castled" << "\n\n";
 							else if (isEnPassant) std::cout << "you captured en passant" << "\n\n";
 							else std::cout << "you moved the " << table[chosen_field[0]][chosen_field[1]] << "\n\n";
+
+							if ((table[become_field[0]][become_field[1]] == "--") && !isEnPassant) Sound0("music/move.wav");
+							else Sound0("music/take.wav");
+							
+
 							if (table[become_field[0]][become_field[1]] != "--")
 							{
 								for (int i = 0; i < 32; i++)
@@ -940,6 +975,7 @@ int SDL_main(int argc, char* argv[])
 							if (Draw(turn_move, table, pieces))
 							{
 								std::cout << "draw" << "\n\n";
+								Sound1("music/victory_draw.wav");
 								for (int i = 0; i < 8; i++)
 									for (int j = 0; j < 8; j++)
 										table[i][j] = "00";
@@ -952,6 +988,7 @@ int SDL_main(int argc, char* argv[])
 									std::string winner = "white";
 									if (turn_move) winner = "black";
 									std::cout << "checkmate, " << winner << " won" << "\n\n";
+									Sound1("music/victory_draw.wav");
 									for (int i = 0; i < 8; i++)
 										for (int j = 0; j < 8; j++)
 											table[i][j] = "00";
@@ -962,6 +999,7 @@ int SDL_main(int argc, char* argv[])
 							else if (Stalemate(turn_move, table, pieces, num_last_moved_piece))
 							{
 								std::cout << "stalemate" << "\n\n";
+								Sound1("music/victory_draw.wav");
 								for (int i = 0; i < 8; i++)
 									for (int j = 0; j < 8; j++)
 										table[i][j] = "00";
@@ -1011,7 +1049,7 @@ int SDL_main(int argc, char* argv[])
 		SDL_Delay(1000/fps);
 	}
 
-	#pragma region DestroyTexture
+	#pragma region Destroy&Free&Close
 	SDL_DestroyTexture(tex_bb);
 	SDL_DestroyTexture(tex_bk);
 	SDL_DestroyTexture(tex_bn);
@@ -1025,6 +1063,9 @@ int SDL_main(int argc, char* argv[])
 	SDL_DestroyTexture(tex_wq);
 	SDL_DestroyTexture(tex_wr);
 	SDL_DestroyTexture(tex_board);
+	Mix_FreeMusic(background);
+	Mix_FreeChunk(sound);
+	Mix_CloseAudio();
 	#pragma endregion
 
 	DeInit(0);
