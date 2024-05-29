@@ -12,7 +12,7 @@ Mix_Chunk* sound = NULL;
 
 int size_field = 80;
 int size_piece = size_field;
-int miss = 5;
+int miss = size_field / 40;
 int fps = 150;
 int win_width = size_field * 8, win_height = size_field * 8;
 bool castling[6] = { true, true, true, true, true, true };
@@ -398,7 +398,7 @@ bool Check2(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 }
 
 
-void CheckCastling(bool turn_move, int* become_field, std::string table[8][8], SDL_Rect* pieces, int* chosen_field, bool* available_move, bool* isCastling)
+void CheckCastling1(bool turn_move, int* become_field, std::string table[8][8], SDL_Rect* pieces, int* chosen_field, bool* available_move, bool* isCastling)
 {
 	if ((become_field[0] == 0) && (become_field[1] == 2) && castling[0] && castling[1] && (table[0][1] + table[0][2] +
 		table[0][3] == "------") && !Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
@@ -471,6 +471,52 @@ void CheckCastling(bool turn_move, int* become_field, std::string table[8][8], S
 	else
 		*available_move = AvailableMove(chosen_field, become_field, table) &&
 		!BitField(turn_move, chosen_field, become_field, table, pieces);
+}
+
+
+bool CheckCastling2(bool turn_move, int* become_field, std::string table[8][8], SDL_Rect* pieces, int* chosen_field)
+{
+	bool CheckCastling = false;
+	if ((become_field[0] == 0) && (become_field[1] == 2) && castling[0] && castling[1] && (table[0][1] + table[0][2] +
+		table[0][3] == "------") && !Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+	{
+		become_field[1] = 3;
+		if (!BitField(turn_move, chosen_field, become_field, table, pieces))
+		{
+			CheckCastling = true;
+		}
+	}
+	else if ((become_field[0] == 0) && (become_field[1] == 6) && castling[0] && castling[2] && (table[0][5] + table[0][6] == "----") &&
+		!Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+	{
+		become_field[1] = 5;
+		if (!BitField(turn_move, chosen_field, become_field, table, pieces))
+		{
+			CheckCastling = true;
+		}
+	}
+	else if ((become_field[0] == 7) && (become_field[1] == 2) && castling[3] && castling[4] && (table[7][1] + table[7][2] +
+		table[7][3] == "------") && !Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+	{
+		become_field[1] = 3;
+		if (!BitField(turn_move, chosen_field, become_field, table, pieces))
+		{
+			CheckCastling = true;
+		}
+	}
+	else if ((become_field[0] == 7) && (become_field[1] == 6) && castling[3] && castling[5] && (table[7][5] + table[7][6] == "----") &&
+		!Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
+	{
+		become_field[1] = 5;
+		if (!BitField(turn_move, chosen_field, become_field, table, pieces))
+		{
+			CheckCastling = true;
+		}
+	}
+	else
+		CheckCastling = AvailableMove(chosen_field, become_field, table) &&
+		!BitField(turn_move, chosen_field, become_field, table, pieces);
+	return CheckCastling;
 }
 
 
@@ -580,25 +626,11 @@ bool CheckEnPassant2(bool turn_move, std::string table[8][8], SDL_Rect* pieces, 
 
 bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces, int num)
 {
-	int king_field[2];
-	std::string find_field = "bK";
 	int i = 0, max = 16;
 	if (turn_move)
 	{
-		find_field = "wK";
 		i = 16;
 		max = 32;
-	}
-	for (int i = 0; i < 8; i++)
-	{
-		for (int j = 0; j < 8; j++)
-			if (table[i][j] == find_field)
-			{
-				king_field[0] = i;
-				king_field[1] = j;
-				i = 8;
-				break;
-			}
 	}
 	bool checkmate = true;
 	int chosen_field[2];
@@ -640,7 +672,7 @@ bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces, int nu
 					}
 					else
 					{
-						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) && 
+						if ((table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]) &&
 							AvailableMove(chosen_field, become_field, table) && !Check1(turn_move, chosen_field, become_field, table, pieces))
 						{
 							checkmate = false;
@@ -658,16 +690,16 @@ bool Checkmate(bool turn_move, std::string table[8][8], SDL_Rect* pieces, int nu
 
 bool Stalemate(bool turn_move, std::string table[8][8], SDL_Rect* pieces, int num)
 {
-	bool stalemate = true;
-	int chosen_field[2];
-	int become_field[2];
-	int dst_become_piece[2];
 	int i = 0, max = 16;
 	if (turn_move)
 	{
 		i = 16;
 		max = 32;
 	}
+	bool stalemate = true;
+	int chosen_field[2];
+	int become_field[2];
+	int dst_become_piece[2];
 	for (i; i < max; i++)
 	{
 		if (pieces[i].x != -100)
@@ -738,11 +770,86 @@ bool Draw(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 }
 
 
+void RenAvailMove(bool turn_move, SDL_Renderer* ren, SDL_Texture* tex_dot, SDL_Texture* tex_frame, SDL_Rect* pieces, std::string table[8][8], int* chosen_field, int num)
+{
+	int dst_become_piece[2];
+	int become_field[2];
+	SDL_Rect dot, frame;
+	for (int n = 0; n < 8; n++)
+		for (int m = 0; m < 8; m++)
+		{
+			become_field[0] = n;
+			become_field[1] = m;
+			dst_become_piece[0] = become_field[1] * size_field;
+			dst_become_piece[1] = become_field[0] * size_field;
+			dot = { dst_become_piece[0] + 28, dst_become_piece[1] + 28, 24, 24 };
+			frame = { dst_become_piece[0], dst_become_piece[1], size_field, size_field };
+			if (table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0])
+			{
+				if (table[chosen_field[0]][chosen_field[1]][1] == 'K')
+				{
+					if (CheckCastling2(turn_move, become_field, table, pieces, chosen_field))
+					{
+						if (table[become_field[0]][become_field[1]] == "--") SDL_RenderCopy(ren, tex_dot, NULL, &dot);
+						else SDL_RenderCopy(ren, tex_frame, NULL, &frame);
+					}
+				}
+				else if (table[chosen_field[0]][chosen_field[1]][1] == 'P')	
+				{
+					if (CheckEnPassant2(turn_move, table, pieces, chosen_field, become_field, dst_become_piece, num))
+					{
+						if (table[become_field[0]][become_field[1]] == "--") SDL_RenderCopy(ren, tex_dot, NULL, &dot);
+						else SDL_RenderCopy(ren, tex_frame, NULL, &frame);
+					}				
+				}
+				else
+				{
+					if (AvailableMove(chosen_field, become_field, table) && !Check1(turn_move, chosen_field, become_field, table, pieces))
+					{
+						if (table[become_field[0]][become_field[1]] == "--") SDL_RenderCopy(ren, tex_dot, NULL, &dot);
+						else SDL_RenderCopy(ren, tex_frame, NULL, &frame);
+					}
+				}
+			}
+		}
+}
+
+
+void RenCheck(bool turn_move, std::string table[8][8], SDL_Texture* tex_check)
+{
+	
+	std::string find_field = "bK";
+
+	if (turn_move) find_field = "wK";
+
+	int king_field[2] = { -100, -100 };
+
+	for (int i = 0; i < 8; i++)
+	{
+		for (int j = 0; j < 8; j++)
+			if (table[i][j] == find_field)
+			{
+				king_field[0] = i;
+				king_field[1] = j;
+				i = 8;
+				break;
+			}
+	}
+
+	SDL_Rect check = { king_field[1] * size_field, king_field[0] * size_field, size_field, size_field };
+
+	SDL_RenderCopy(ren, tex_check, NULL, &check);
+}
+
+
 int SDL_main(int argc, char* argv[])
 {
 	Init();
 
 	#pragma region LoadTexture
+	SDL_Texture* tex_dot = LoadTextureFromFile("pictures/dot.png");
+	SDL_Texture* tex_frame = LoadTextureFromFile("pictures/frame.png");
+	SDL_Texture* tex_check = LoadTextureFromFile("pictures/check.png");
 	SDL_Texture* tex_wb = LoadTextureFromFile("pictures/wb.png");
 	SDL_Texture* tex_wk = LoadTextureFromFile("pictures/wk.png");
 	SDL_Texture* tex_wn = LoadTextureFromFile("pictures/wn.png");
@@ -755,7 +862,7 @@ int SDL_main(int argc, char* argv[])
 	SDL_Texture* tex_bp = LoadTextureFromFile("pictures/bp.png");
 	SDL_Texture* tex_bq = LoadTextureFromFile("pictures/bq.png");
 	SDL_Texture* tex_br = LoadTextureFromFile("pictures/br.png");
-	SDL_Texture* tex_board = LoadTextureFromFile("pictures/green.png");
+	SDL_Texture* tex_board = LoadTextureFromFile("pictures/brown.png");
 	SDL_Texture* textures[32] = {
 			tex_br, tex_bn, tex_bb, tex_bq, tex_bk, tex_bb, tex_bn, tex_br,
 			tex_bp, tex_bp, tex_bp, tex_bp, tex_bp, tex_bp, tex_bp, tex_bp,
@@ -818,13 +925,14 @@ int SDL_main(int argc, char* argv[])
 	pieces[31] = { 7 * size_field, 6 * size_field, size_piece, size_piece };
 	#pragma endregion
 
-	int chosen_index = 0;
 	int chosen_field[2], become_field[2];
 	int dst_chosen_piece[2], dst_become_piece[2];
-	int number_chosen_piece;
+	int num_chosen_piece = 0;
 	int num_last_moved_piece = -1;
 	
-	bool chosen = false;
+	bool game_over = false;
+	bool isChosen = false;
+	bool isCheck = false;
 	bool turn_move = true;
 	bool available_move = false;
 
@@ -844,7 +952,7 @@ int SDL_main(int argc, char* argv[])
 				{
 					chosen_field[0] = ev.button.y / size_field;
 					chosen_field[1] = ev.button.x / size_field;
-					if ((table[chosen_field[0]][chosen_field[1]] != "--") && (table[chosen_field[0]][chosen_field[1]] != "00"))
+					if ((table[chosen_field[0]][chosen_field[1]] != "--") && !game_over)
 					{
 						dst_chosen_piece[0] = chosen_field[1] * size_field;
 						dst_chosen_piece[1] = chosen_field[0] * size_field;
@@ -861,24 +969,23 @@ int SDL_main(int argc, char* argv[])
 								{
 									if ((pieces[i].x == dst_chosen_piece[0]) && (pieces[i].y == dst_chosen_piece[1]))
 									{
-										chosen = true;
-										chosen_index = i;
-										number_chosen_piece = i;
+										isChosen = true;
+										num_chosen_piece = i;
 										break;
 									}
 								}
 							}
 							else std::cout << "miss click protection" << std::endl;
 					}
-					else if (table[chosen_field[0]][chosen_field[1]] == "--") std::cout << "you clicked on an empty field" << std::endl;
+					else if ((table[chosen_field[0]][chosen_field[1]] == "--") && !game_over) std::cout << "you clicked on an empty field" << std::endl;
 					else std::cout << "game over" << "\n";
 				}
 				break;
 				case SDL_MOUSEMOTION:
-				if (chosen)
+				if (isChosen)
 				{
-					pieces[number_chosen_piece].x = ev.motion.x - 40;
-					pieces[number_chosen_piece].y = ev.motion.y - 40;
+					pieces[num_chosen_piece].x = ev.motion.x - 40;
+					pieces[num_chosen_piece].y = ev.motion.y - 40;
 				}
 				break;
 			case SDL_MOUSEBUTTONUP:
@@ -890,12 +997,12 @@ int SDL_main(int argc, char* argv[])
 					become_field[1] = ev.button.x / size_field;
 					dst_become_piece[0] = become_field[1] * size_field;
 					dst_become_piece[1] = become_field[0] * size_field;
-					if ((chosen == 1) && (ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < win_width) && (ev.button.y < win_height) && 
+					if ((isChosen == 1) && (ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < win_width) && (ev.button.y < win_height) && 
 						!((become_field[0] == chosen_field[0]) && (become_field[1] == chosen_field[1])) && 
 						(table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]))
 					{
 						if (table[chosen_field[0]][chosen_field[1]][1] == 'K')
-							CheckCastling(turn_move, become_field, table, pieces, chosen_field, &available_move, &isCastling);
+							CheckCastling1(turn_move, become_field, table, pieces, chosen_field, &available_move, &isCastling);
 						else if ((table[chosen_field[0]][chosen_field[1]][1] == 'P') && (table[become_field[0]][become_field[1]] == "--"))
 							CheckEnPassant1(turn_move, table, pieces, chosen_field, become_field, &available_move, &isEnPassant, dst_become_piece, num_last_moved_piece);
 						else
@@ -923,13 +1030,15 @@ int SDL_main(int argc, char* argv[])
 									}
 								}
 							}
-							pieces[number_chosen_piece].x = dst_become_piece[0];
-							pieces[number_chosen_piece].y = dst_become_piece[1];
+
+							pieces[num_chosen_piece].x = dst_become_piece[0];
+							pieces[num_chosen_piece].y = dst_become_piece[1];
 							table[become_field[0]][become_field[1]] = table[chosen_field[0]][chosen_field[1]];
 							table[chosen_field[0]][chosen_field[1]] = "--";
 							turn_move = !turn_move;
 							available_move = false;
-							num_last_moved_piece = number_chosen_piece;
+							isCheck = false;
+							num_last_moved_piece = num_chosen_piece;
 							
 							if (turn_move && (num_last_moved_piece >= 8) && (num_last_moved_piece <= 16))
 							{
@@ -976,22 +1085,19 @@ int SDL_main(int argc, char* argv[])
 							{
 								std::cout << "draw" << "\n\n";
 								Sound1("music/victory_draw.wav");
-								for (int i = 0; i < 8; i++)
-									for (int j = 0; j < 8; j++)
-										table[i][j] = "00";
+								game_over = true;
 							}
 							
 							else if (Check2(turn_move, table, pieces))
 							{
+								isCheck = true;
 								if (Checkmate(turn_move, table, pieces, num_last_moved_piece))
 								{
 									std::string winner = "white";
 									if (turn_move) winner = "black";
 									std::cout << "checkmate, " << winner << " won" << "\n\n";
 									Sound1("music/victory_draw.wav");
-									for (int i = 0; i < 8; i++)
-										for (int j = 0; j < 8; j++)
-											table[i][j] = "00";
+									game_over = true;
 								}
 								else std::cout << "check" << "\n\n";
 							}
@@ -1000,34 +1106,32 @@ int SDL_main(int argc, char* argv[])
 							{
 								std::cout << "stalemate" << "\n\n";
 								Sound1("music/victory_draw.wav");
-								for (int i = 0; i < 8; i++)
-									for (int j = 0; j < 8; j++)
-										table[i][j] = "00";
+								game_over = true;
 							}
 
 						}
 						else
 						{
 							std::cout << "this move is impossible" << std::endl;
-							pieces[number_chosen_piece].x = dst_chosen_piece[0];
-							pieces[number_chosen_piece].y = dst_chosen_piece[1];;
+							pieces[num_chosen_piece].x = dst_chosen_piece[0];
+							pieces[num_chosen_piece].y = dst_chosen_piece[1];;
 						}
 					}
-					else if (chosen && !((dst_become_piece[0] == dst_chosen_piece[0]) &&
+					else if (isChosen && !((dst_become_piece[0] == dst_chosen_piece[0]) &&
 						(dst_become_piece[1] == dst_chosen_piece[1])))
 					{
 						std::cout << "this move is impossible" << std::endl;
-						pieces[number_chosen_piece].x = dst_chosen_piece[0];
-						pieces[number_chosen_piece].y = dst_chosen_piece[1];
+						pieces[num_chosen_piece].x = dst_chosen_piece[0];
+						pieces[num_chosen_piece].y = dst_chosen_piece[1];
 					}
-					else if (chosen && (dst_become_piece[0] == dst_chosen_piece[0]) &&
+					else if (isChosen && (dst_become_piece[0] == dst_chosen_piece[0]) &&
 						(dst_become_piece[1] == dst_chosen_piece[1]))
 					{
 						std::cout << "you put the " << table[become_field[0]][become_field[1]] << " back" << std::endl;
-						pieces[number_chosen_piece].x = dst_chosen_piece[0];
-						pieces[number_chosen_piece].y = dst_chosen_piece[1];
+						pieces[num_chosen_piece].x = dst_chosen_piece[0];
+						pieces[num_chosen_piece].y = dst_chosen_piece[1];
 					}
-					chosen = false;
+					isChosen = false;
 				}
 				break;
 			case SDL_KEYDOWN:
@@ -1043,13 +1147,17 @@ int SDL_main(int argc, char* argv[])
 
 		SDL_RenderCopy(ren, tex_board, NULL, &rect_board);
 		for (int i = 0; i < 32; i++) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
-		for (int i = 0; i < 32; i++) if (i == chosen_index) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
-
+		if (isChosen) RenAvailMove(turn_move, ren, tex_dot, tex_frame, pieces, table, chosen_field, num_last_moved_piece);
+		if (isCheck) RenCheck(turn_move, table, tex_check);
+		for (int i = 0; i < 32; i++) if (i == num_chosen_piece) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
 		SDL_RenderPresent(ren);
 		SDL_Delay(1000/fps);
 	}
 
 	#pragma region Destroy&Free&Close
+	SDL_DestroyTexture(tex_dot);
+	SDL_DestroyTexture(tex_frame);
+	SDL_DestroyTexture(tex_check);
 	SDL_DestroyTexture(tex_bb);
 	SDL_DestroyTexture(tex_bk);
 	SDL_DestroyTexture(tex_bn);
