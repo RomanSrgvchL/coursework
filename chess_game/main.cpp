@@ -4,6 +4,8 @@
 #include <SDL_image.h>
 #include <SDL_ttf.h> 
 #include <SDL_mixer.h>
+#include <fstream>
+#include <string>
 
 SDL_Window* win = NULL;
 SDL_Renderer* ren = NULL;
@@ -14,8 +16,37 @@ int size_field = 80;
 int size_piece = size_field;
 int miss = size_field / 40;
 int fps = 150;
-int win_width = size_field * 8, win_height = size_field * 8;
+int board_width = size_field * 8, board_height = size_field * 8, menu_bar = 100;
+int win_width = board_width + menu_bar, win_height = board_height;
 bool castling[6] = { true, true, true, true, true, true };
+
+struct move
+{
+	std::string table[8][8];
+	SDL_Rect pieces[32];
+	SDL_Texture* textures[32];
+	bool game_over;
+	int num_last_moved_piece;
+	bool turn_move;
+	bool isCheck;
+	bool castling[6];
+};
+
+
+void PrintTable(std::string table[8][8])
+{
+	std::cout << "--------------------------" << std::endl;
+	for (int i = 0; i < 8; i++)
+	{
+		std::cout << "|";
+		for (int j = 0; j < 8; j++)
+			std::cout << table[i][j] << " ";
+		std::cout << "|" << std::endl;
+	}
+	std::cout << "--------------------------";
+	std::cout << "\n\n";
+}
+
 
 void DeInit(int error)
 {
@@ -81,7 +112,7 @@ void Init()
 
 void LoadMusic()
 {
-	background = Mix_LoadMUS("music/background2_1.mp3");
+	background = Mix_LoadMUS("music/background1_1.mp3");
 	Mix_PlayMusic(background, -1);
 }
 
@@ -770,11 +801,13 @@ bool Draw(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 }
 
 
-void RenAvailMove(bool turn_move, SDL_Renderer* ren, SDL_Texture* tex_dot, SDL_Texture* tex_frame, SDL_Rect* pieces, std::string table[8][8], int* chosen_field, int num)
+void RenAvailMove(bool turn_move, SDL_Renderer* ren, SDL_Texture* tex_dot, SDL_Texture* tex_frame, SDL_Texture* tex_star, SDL_Rect* pieces, std::string table[8][8], int* chosen_field, int num)
 {
 	int dst_become_piece[2];
 	int become_field[2];
 	SDL_Rect dot, frame;
+	SDL_Rect star = { chosen_field[1] * size_field + 28, chosen_field[0] * size_field + 28, 24, 24 };
+	SDL_RenderCopy(ren, tex_star, NULL, &star);
 	for (int n = 0; n < 8; n++)
 		for (int m = 0; m < 8; m++)
 		{
@@ -850,6 +883,12 @@ int SDL_main(int argc, char* argv[])
 	SDL_Texture* tex_dot = LoadTextureFromFile("pictures/dot.png");
 	SDL_Texture* tex_frame = LoadTextureFromFile("pictures/frame.png");
 	SDL_Texture* tex_check = LoadTextureFromFile("pictures/check.png");
+	SDL_Texture* tex_star = LoadTextureFromFile("pictures/star.png");
+	SDL_Texture* tex_logout = LoadTextureFromFile("pictures/logout.png");
+	SDL_Texture* tex_return = LoadTextureFromFile("pictures/return.png");
+	SDL_Texture* tex_return_gray = LoadTextureFromFile("pictures/return_gray.png");
+	SDL_Texture* tex_flag = LoadTextureFromFile("pictures/flag.png");
+	SDL_Texture* tex_menu_bar = LoadTextureFromFile("pictures/menu_bar.png");
 	SDL_Texture* tex_wb = LoadTextureFromFile("pictures/wb.png");
 	SDL_Texture* tex_wk = LoadTextureFromFile("pictures/wk.png");
 	SDL_Texture* tex_wn = LoadTextureFromFile("pictures/wn.png");
@@ -870,12 +909,26 @@ int SDL_main(int argc, char* argv[])
 			tex_wp, tex_wp, tex_wp, tex_wp, tex_wp, tex_wp, tex_wp, tex_wp
 	};
 	#pragma endregion
+
+	move moves_history[200];
+
 	bool isRunning = true;
 	bool isCastling = false;
 	bool isEnPassant = false;
+
 	SDL_Event ev;
-	SDL_Rect rect_board = { 0, 0, win_width, win_height };
-	
+	SDL_Rect rect_board = { 0, 0, board_width, board_height };
+	SDL_Rect rect_menu_bar = { board_width, 0, menu_bar, board_height };
+	SDL_Rect rect_logout = { board_width + 10, 100, 80, 80 };
+	SDL_Rect rect_return = { board_width + 10, 100 * 2 + 80, 80, 80 };
+	SDL_Rect rect_flag = { board_width + 10, 100 * 3 + 80 * 2, 80, 80 };
+	SDL_Rect rects[10] = {
+			{ board_width, 0 , 100, 95 },
+			{ board_width, 100 + 80 + 5, 100, 90 },
+			{ board_width, 100 * 2 + 80 * 2 + 5, 100, 90 },
+			{ board_width, 100 * 3 + 80 * 3 + 5, 100, 95 },
+	};
+
 	std::string table[8][8] = {
 		{ "bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR"},
 		{ "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP"},
@@ -889,6 +942,7 @@ int SDL_main(int argc, char* argv[])
 
 	// 0 - 15 black, 16 - 31 white
 	// 8 - 15 pawns, 24 - 31 pawns
+
 	#pragma region Destinations
 	SDL_Rect pieces[32];
 	pieces[0] = { 0 * size_field, 0 * size_field, size_piece, size_piece };
@@ -929,6 +983,7 @@ int SDL_main(int argc, char* argv[])
 	int dst_chosen_piece[2], dst_become_piece[2];
 	int num_chosen_piece = 0;
 	int num_last_moved_piece = -1;
+	int moves_num = 0;
 	
 	bool game_over = false;
 	bool isChosen = false;
@@ -936,7 +991,33 @@ int SDL_main(int argc, char* argv[])
 	bool turn_move = true;
 	bool available_move = false;
 
-	LoadMusic();
+	//LoadMusic();
+
+	#pragma region FirstMoveRecording;
+	for (int i = 0; i < 8; i++)
+		for (int j = 0; j < 8; j++)
+			moves_history[moves_num].table[i][j] = table[i][j];
+
+	for (int i = 0; i < 32; i++)
+	{
+		moves_history[moves_num].pieces[i].x = pieces[i].x;
+		moves_history[moves_num].pieces[i].y = pieces[i].y;
+		moves_history[moves_num].pieces[i].w = pieces[i].w;
+		moves_history[moves_num].pieces[i].h = pieces[i].h;
+	}
+
+	for (int i = 0; i < 32; i++)
+		moves_history[moves_num].textures[i] = textures[i];
+
+	moves_history[moves_num].game_over = game_over;
+	moves_history[moves_num].num_last_moved_piece = num_last_moved_piece;
+	moves_history[moves_num].turn_move = turn_move;
+	moves_history[moves_num].isCheck = isCheck;
+
+	for (int i = 0; i < 6; i++)
+		moves_history[moves_num].castling[i] = castling[i];
+	#pragma endregion
+
 
 	while (isRunning)
 	{
@@ -952,33 +1033,87 @@ int SDL_main(int argc, char* argv[])
 				{
 					chosen_field[0] = ev.button.y / size_field;
 					chosen_field[1] = ev.button.x / size_field;
-					if ((table[chosen_field[0]][chosen_field[1]] != "--") && !game_over)
+					if ((ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < board_width) && (ev.button.y < board_height))
 					{
-						dst_chosen_piece[0] = chosen_field[1] * size_field;
-						dst_chosen_piece[1] = chosen_field[0] * size_field;
-						if ((turn_move == false) && (table[chosen_field[0]][chosen_field[1]][0] == 'w'))
-							std::cout << "It's black's turn now" << std::endl;
-						else if ((turn_move == true) && (table[chosen_field[0]][chosen_field[1]][0] == 'b'))
-							std::cout << "It's white's turn now" << std::endl;
-						else
-							if (((ev.button.x > dst_chosen_piece[0] + miss) && (ev.button.x + miss < dst_chosen_piece[0] + size_field)) &&
-								((ev.button.y > dst_chosen_piece[1] + miss) && (ev.button.y + miss < dst_chosen_piece[1] + size_field)))
-							{
-								std::cout << "you chose the " << table[chosen_field[0]][chosen_field[1]] << std::endl;
-								for (int i = 0; i < 32; i++)
+						if ((table[chosen_field[0]][chosen_field[1]] != "--") && !game_over)
+						{
+							dst_chosen_piece[0] = chosen_field[1] * size_field;
+							dst_chosen_piece[1] = chosen_field[0] * size_field;
+							if ((turn_move == false) && (table[chosen_field[0]][chosen_field[1]][0] == 'w'))
+								std::cout << "It's black's turn now" << std::endl;
+							else if ((turn_move == true) && (table[chosen_field[0]][chosen_field[1]][0] == 'b'))
+								std::cout << "It's white's turn now" << std::endl;
+							else
+								if (((ev.button.x > dst_chosen_piece[0] + miss) && (ev.button.x + miss < dst_chosen_piece[0] + size_field)) &&
+									((ev.button.y > dst_chosen_piece[1] + miss) && (ev.button.y + miss < dst_chosen_piece[1] + size_field)))
 								{
-									if ((pieces[i].x == dst_chosen_piece[0]) && (pieces[i].y == dst_chosen_piece[1]))
+									std::cout << "you chose the " << table[chosen_field[0]][chosen_field[1]] << std::endl;
+									for (int i = 0; i < 32; i++)
 									{
-										isChosen = true;
-										num_chosen_piece = i;
-										break;
+										if ((pieces[i].x == dst_chosen_piece[0]) && (pieces[i].y == dst_chosen_piece[1]))
+										{
+											isChosen = true;
+											num_chosen_piece = i;
+											break;
+										}
 									}
 								}
-							}
-							else std::cout << "miss click protection" << std::endl;
+								else std::cout << "miss click protection" << std::endl;
+						}
+						else if ((table[chosen_field[0]][chosen_field[1]] == "--") && !game_over) std::cout << "you clicked on an empty field" << std::endl;
+						else std::cout << "game over" << "\n";
 					}
-					else if ((table[chosen_field[0]][chosen_field[1]] == "--") && !game_over) std::cout << "you clicked on an empty field" << std::endl;
-					else std::cout << "game over" << "\n";
+					else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_logout.y - 5) && 
+						(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_logout.y + rect_logout.h + 5))
+					{
+						std::cout << "logout" << "\n\n";
+						DeInit(0);
+					}
+					else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_return.y - 5) && 
+						(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_return.y + rect_return.h + 5))
+					{
+						#pragma region MoveReturn
+						if (moves_num > 0)
+						{
+							moves_num--;
+							for (int i = 0; i < 8; i++)
+								for (int j = 0; j < 8; j++)
+									table[i][j] = moves_history[moves_num].table[i][j];
+
+							for (int i = 0; i < 32; i++)
+							{
+								pieces[i].x = moves_history[moves_num].pieces[i].x;
+								pieces[i].y = moves_history[moves_num].pieces[i].y;
+								pieces[i].w = moves_history[moves_num].pieces[i].w;
+								pieces[i].h = moves_history[moves_num].pieces[i].h;
+							}
+
+							for (int i = 0; i < 32; i++)
+								textures[i] = moves_history[moves_num].textures[i];
+							
+							game_over = moves_history[moves_num].game_over;
+							num_last_moved_piece = moves_history[moves_num].num_last_moved_piece;
+							turn_move = moves_history[moves_num].turn_move;
+							isCheck = moves_history[moves_num].isCheck;
+
+							for (int i = 0; i < 6; i++)
+								castling[i] = moves_history[moves_num].castling[i];
+							std::cout << "you returned the move" << "\n\n";
+							PrintTable(table);
+						}
+						else
+							std::cout << "you haven't made any moves yet" << "\n\n";
+						#pragma endregion
+					}
+					else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_flag.y - 5) && 
+						(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_flag.y + rect_flag.h + 5) && !game_over)
+					{
+						if (turn_move) std::cout << "black won" << "\n\n";
+						else std::cout << "white won" << "\n\n";
+						Sound1("music/victory_draw.wav");
+						game_over = true;
+					}
+					else std::cout << "empty" << std::endl;
 				}
 				break;
 				case SDL_MOUSEMOTION:
@@ -997,7 +1132,8 @@ int SDL_main(int argc, char* argv[])
 					become_field[1] = ev.button.x / size_field;
 					dst_become_piece[0] = become_field[1] * size_field;
 					dst_become_piece[1] = become_field[0] * size_field;
-					if ((isChosen == 1) && (ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < win_width) && (ev.button.y < win_height) && 
+
+					if ((isChosen == 1) && (ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < board_width) && (ev.button.y < board_height) && 
 						!((become_field[0] == chosen_field[0]) && (become_field[1] == chosen_field[1])) && 
 						(table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]))
 					{
@@ -1057,16 +1193,7 @@ int SDL_main(int argc, char* argv[])
 								}
 							}					
 
-							std::cout << "--------------------------" << std::endl;
-							for (int i = 0; i < 8; i++)
-							{
-								std::cout << "|";
-								for (int j = 0; j < 8; j++)
-									std::cout << table[i][j] << " ";
-								std::cout << "|" << std::endl;
-							}
-							std::cout << "--------------------------";
-							std::cout << "\n\n";
+							PrintTable(table);
 
 							if (!((pieces[4].x == 4 * size_field) && (pieces[4].y == 0)))
 								castling[0] = false;
@@ -1109,6 +1236,31 @@ int SDL_main(int argc, char* argv[])
 								game_over = true;
 							}
 
+							#pragma region MoveRecording
+							moves_num++;
+							for (int i = 0; i < 8; i++)
+								for (int j = 0; j < 8; j++)
+									moves_history[moves_num].table[i][j] = table[i][j];
+
+							for (int i = 0; i < 32; i++)
+							{
+								moves_history[moves_num].pieces[i].x = pieces[i].x;
+								moves_history[moves_num].pieces[i].y = pieces[i].y;
+								moves_history[moves_num].pieces[i].w = pieces[i].w;
+								moves_history[moves_num].pieces[i].h = pieces[i].h;
+							}
+
+							for (int i = 0; i < 32; i++)
+								moves_history[moves_num].textures[i] = textures[i];
+
+							moves_history[moves_num].game_over = game_over;
+							moves_history[moves_num].num_last_moved_piece = num_last_moved_piece;
+							moves_history[moves_num].turn_move = turn_move;
+							moves_history[moves_num].isCheck = isCheck;
+
+							for (int i = 0; i < 6; i++)
+								moves_history[moves_num].castling[i] = castling[i];
+							#pragma endregion
 						}
 						else
 						{
@@ -1146,8 +1298,14 @@ int SDL_main(int argc, char* argv[])
 		}
 
 		SDL_RenderCopy(ren, tex_board, NULL, &rect_board);
+		SDL_RenderCopy(ren, tex_menu_bar, NULL, &rect_menu_bar);
+		SDL_RenderCopy(ren, tex_logout, NULL, &rect_logout);
+		if (moves_num == 0) SDL_RenderCopy(ren, tex_return_gray, NULL, &rect_return);
+		else SDL_RenderCopy(ren, tex_return, NULL, &rect_return);
+		SDL_RenderCopy(ren, tex_flag, NULL, &rect_flag);
+		SDL_RenderFillRects(ren, rects, 4);
 		for (int i = 0; i < 32; i++) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
-		if (isChosen) RenAvailMove(turn_move, ren, tex_dot, tex_frame, pieces, table, chosen_field, num_last_moved_piece);
+		if (isChosen) RenAvailMove(turn_move, ren, tex_dot, tex_frame, tex_star, pieces, table, chosen_field, num_last_moved_piece);
 		if (isCheck) RenCheck(turn_move, table, tex_check);
 		for (int i = 0; i < 32; i++) if (i == num_chosen_piece) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
 		SDL_RenderPresent(ren);
@@ -1158,6 +1316,12 @@ int SDL_main(int argc, char* argv[])
 	SDL_DestroyTexture(tex_dot);
 	SDL_DestroyTexture(tex_frame);
 	SDL_DestroyTexture(tex_check);
+	SDL_DestroyTexture(tex_star);
+	SDL_DestroyTexture(tex_menu_bar);
+	SDL_DestroyTexture(tex_logout);
+	SDL_DestroyTexture(tex_return);
+	SDL_DestroyTexture(tex_return_gray);
+	SDL_DestroyTexture(tex_flag);
 	SDL_DestroyTexture(tex_bb);
 	SDL_DestroyTexture(tex_bk);
 	SDL_DestroyTexture(tex_bn);
