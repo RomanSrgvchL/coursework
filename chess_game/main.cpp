@@ -33,21 +33,6 @@ struct move
 };
 
 
-void PrintTable(std::string table[8][8])
-{
-	std::cout << "--------------------------" << std::endl;
-	for (int i = 0; i < 8; i++)
-	{
-		std::cout << "|";
-		for (int j = 0; j < 8; j++)
-			std::cout << table[i][j] << " ";
-		std::cout << "|" << std::endl;
-	}
-	std::cout << "--------------------------";
-	std::cout << "\n\n";
-}
-
-
 void DeInit(int error)
 {
 	if (ren != NULL) SDL_DestroyRenderer(ren);
@@ -71,14 +56,14 @@ void Init()
 
 	int imgFlag;
 
-	if ((imgFlag = IMG_Init(IMG_INIT_PNG)) == 0)
+	if ((imgFlag = IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG)) == 0)
 	{
 		std::cout << "Couldn't init SDL_Image! Error: " << SDL_GetError() << std::endl;;
 		system("pause");
 		DeInit(1);
 	}
 
-	if (!(imgFlag & IMG_INIT_PNG)) std::cout << "Couldn't init PNG library.\n";
+	if (!(imgFlag & (IMG_INIT_PNG | IMG_INIT_JPG))) std::cout << "Couldn't init PNG or JPG library.\n";
 
 	if (TTF_Init() == -1)
 	{
@@ -110,24 +95,48 @@ void Init()
 }
 
 
-void LoadMusic()
+void LoadMusic(bool isMusic)
 {
-	background = Mix_LoadMUS("music/background1_1.mp3");
-	Mix_PlayMusic(background, -1);
+	if (isMusic)
+	{
+		background = Mix_LoadMUS("music/background1_1.mp3");
+		Mix_PlayMusic(background, -1);
+	}
 }
 
 
-void Sound0(std::string name_file)
+void PrintTable(std::string table[8][8])
 {
-	sound = Mix_LoadWAV(name_file.c_str());
-	Mix_PlayChannel(0, sound, 0);
+	std::cout << "--------------------------" << std::endl;
+	for (int i = 0; i < 8; i++)
+	{
+		std::cout << "|";
+		for (int j = 0; j < 8; j++)
+			std::cout << table[i][j] << " ";
+		std::cout << "|" << std::endl;
+	}
+	std::cout << "--------------------------";
+	std::cout << "\n\n";
 }
 
 
-void Sound1(std::string name_file)
+void Sound0(std::string name_file, bool isChunk)
 {
-	sound = Mix_LoadWAV(name_file.c_str());
-	Mix_PlayChannel(-1, sound, 0);
+	if (isChunk)
+	{
+		sound = Mix_LoadWAV(name_file.c_str());
+		Mix_PlayChannel(0, sound, 0);
+	}
+}
+
+
+void Sound1(std::string name_file, bool isChunk)
+{
+	if (isChunk)
+	{
+		sound = Mix_LoadWAV(name_file.c_str());
+		Mix_PlayChannel(-1, sound, 0);
+	}
 }
 
 
@@ -875,10 +884,81 @@ void RenCheck(bool turn_move, std::string table[8][8], SDL_Texture* tex_check)
 }
 
 
+SDL_Texture* get_text_texture(SDL_Renderer*& ren, char* text, TTF_Font* font)
+{
+	SDL_Color fore_color = { 184, 231, 252 };
+	SDL_Color back_color = { 105, 63, 181 };
+	SDL_Surface* textSurface = TTF_RenderText_Shaded(font, text, fore_color, back_color);
+	SDL_Texture* tex_text = SDL_CreateTextureFromSurface(ren, textSurface);
+	SDL_FreeSurface(textSurface);
+	return tex_text;
+}
+
+
+void ReturnMove(int moves_num, bool* turn_move, std::string table[8][8], SDL_Rect* pieces, bool* game_over, int* num, bool* isCheck, SDL_Texture* textures[32], move* moves_history)
+{
+	for (int i = 0; i < 8; i++)
+		for (int j = 0; j < 8; j++)
+			table[i][j] = moves_history[moves_num].table[i][j];
+
+	for (int i = 0; i < 32; i++)
+	{
+		pieces[i].x = moves_history[moves_num].pieces[i].x;
+		pieces[i].y = moves_history[moves_num].pieces[i].y;
+		pieces[i].w = moves_history[moves_num].pieces[i].w;
+		pieces[i].h = moves_history[moves_num].pieces[i].h;
+	}
+
+	for (int i = 0; i < 32; i++)
+		textures[i] = moves_history[moves_num].textures[i];
+
+	*game_over = moves_history[moves_num].game_over;
+	*num = moves_history[moves_num].num_last_moved_piece;
+	*turn_move = moves_history[moves_num].turn_move;
+	*isCheck = moves_history[moves_num].isCheck;
+
+	for (int i = 0; i < 6; i++)
+		castling[i] = moves_history[moves_num].castling[i];
+	PrintTable(table);
+}
+
+
 int SDL_main(int argc, char* argv[])
 {
 	Init();
 
+	int height_font = 500;
+
+	TTF_Font* font = TTF_OpenFont("fonts/beer_money.ttf", height_font);
+	char text_settings[9] = "Settings";
+	char text_mode1[19] = "Play with a friend";
+	char text_mode2[13] = "Play with AI";
+	char text_quit[5] = "Quit";
+	char text_back[5] = "Back";
+	char text_music[6] = "Music";
+	char text_sound_effects[14] = "Sound Effects";
+	SDL_Texture* tex_settings = get_text_texture(ren, text_settings, font);
+	SDL_Texture* tex_mode1 = get_text_texture(ren, text_mode1, font);
+	SDL_Texture* tex_mode2 = get_text_texture(ren, text_mode2, font);
+	SDL_Texture* tex_quit = get_text_texture(ren, text_quit, font);
+	SDL_Texture* tex_back = get_text_texture(ren, text_back, font);
+	SDL_Texture* tex_music = get_text_texture(ren, text_music, font);
+	SDL_Texture* tex_sound_effects = get_text_texture(ren, text_sound_effects, font);
+	SDL_Rect rect_settings = { 220, 48, 300, 100 };
+	SDL_Rect rect_mode1 = { 110, 48 * 2 + 100, 520, 100 };
+	SDL_Rect rect_mode2 = { 170, 48 * 3 + 100 * 2, 400, 100 };
+	SDL_Rect rect_quit = { 270, 48 * 4 + 100 * 3, 200, 100 };
+	SDL_Rect rect_back = { 600, 10, 130, 70 };
+	SDL_Rect rect_music = { 10, 10, 150, 70 };
+	SDL_Rect rect_sound_effects = { 10, 100, 300, 70 };
+
+	SDL_Rect rects_s[6];
+	for (int i = 0; i < 3; i++)
+	{
+		rects_s[i] = { 165 + i, 10 + i, 70 - 2 * i, 70 - 2 * i };
+		rects_s[i + 3] = { 315 + i, 100 + i, 70 - 2 * i, 70 - 2 * i };
+	}
+		
 	#pragma region LoadTexture
 	SDL_Texture* tex_dot = LoadTextureFromFile("pictures/dot.png");
 	SDL_Texture* tex_frame = LoadTextureFromFile("pictures/frame.png");
@@ -888,19 +968,23 @@ int SDL_main(int argc, char* argv[])
 	SDL_Texture* tex_return = LoadTextureFromFile("pictures/return.png");
 	SDL_Texture* tex_return_gray = LoadTextureFromFile("pictures/return_gray.png");
 	SDL_Texture* tex_flag = LoadTextureFromFile("pictures/flag.png");
+	SDL_Texture* tex_flag_gray = LoadTextureFromFile("pictures/flag_gray.png");
+	SDL_Texture* tex_restart = LoadTextureFromFile("pictures/restart.png");
+	SDL_Texture* tex_restart_gray = LoadTextureFromFile("pictures/restart_gray.png");
 	SDL_Texture* tex_menu_bar = LoadTextureFromFile("pictures/menu_bar.png");
-	SDL_Texture* tex_wb = LoadTextureFromFile("pictures/wb.png");
-	SDL_Texture* tex_wk = LoadTextureFromFile("pictures/wk.png");
-	SDL_Texture* tex_wn = LoadTextureFromFile("pictures/wn.png");
-	SDL_Texture* tex_wp = LoadTextureFromFile("pictures/wp.png");
-	SDL_Texture* tex_wq = LoadTextureFromFile("pictures/wq.png");
-	SDL_Texture* tex_wr = LoadTextureFromFile("pictures/wr.png");
-	SDL_Texture* tex_bb = LoadTextureFromFile("pictures/bb.png");
-	SDL_Texture* tex_bk = LoadTextureFromFile("pictures/bk.png");
-	SDL_Texture* tex_bn = LoadTextureFromFile("pictures/bn.png");
-	SDL_Texture* tex_bp = LoadTextureFromFile("pictures/bp.png");
-	SDL_Texture* tex_bq = LoadTextureFromFile("pictures/bq.png");
-	SDL_Texture* tex_br = LoadTextureFromFile("pictures/br.png");
+	SDL_Texture* tex_menu = LoadTextureFromFile("pictures/menu.jpg");
+	SDL_Texture* tex_wb = LoadTextureFromFile("pictures/pieces1/wb.png");
+	SDL_Texture* tex_wk = LoadTextureFromFile("pictures/pieces1/wk.png");
+	SDL_Texture* tex_wn = LoadTextureFromFile("pictures/pieces1/wn.png");
+	SDL_Texture* tex_wp = LoadTextureFromFile("pictures/pieces1/wp.png");
+	SDL_Texture* tex_wq = LoadTextureFromFile("pictures/pieces1/wq.png");
+	SDL_Texture* tex_wr = LoadTextureFromFile("pictures/pieces1/wr.png");
+	SDL_Texture* tex_bb = LoadTextureFromFile("pictures/pieces1/bb.png");
+	SDL_Texture* tex_bk = LoadTextureFromFile("pictures/pieces1/bk.png");
+	SDL_Texture* tex_bn = LoadTextureFromFile("pictures/pieces1/bn.png");
+	SDL_Texture* tex_bp = LoadTextureFromFile("pictures/pieces1/bp.png");
+	SDL_Texture* tex_bq = LoadTextureFromFile("pictures/pieces1/bq.png");
+	SDL_Texture* tex_br = LoadTextureFromFile("pictures/pieces1/br.png");
 	SDL_Texture* tex_board = LoadTextureFromFile("pictures/brown.png");
 	SDL_Texture* textures[32] = {
 			tex_br, tex_bn, tex_bb, tex_bq, tex_bk, tex_bb, tex_bn, tex_br,
@@ -919,14 +1003,16 @@ int SDL_main(int argc, char* argv[])
 	SDL_Event ev;
 	SDL_Rect rect_board = { 0, 0, board_width, board_height };
 	SDL_Rect rect_menu_bar = { board_width, 0, menu_bar, board_height };
-	SDL_Rect rect_logout = { board_width + 10, 100, 80, 80 };
-	SDL_Rect rect_return = { board_width + 10, 100 * 2 + 80, 80, 80 };
-	SDL_Rect rect_flag = { board_width + 10, 100 * 3 + 80 * 2, 80, 80 };
-	SDL_Rect rects[10] = {
-			{ board_width, 0 , 100, 95 },
-			{ board_width, 100 + 80 + 5, 100, 90 },
-			{ board_width, 100 * 2 + 80 * 2 + 5, 100, 90 },
-			{ board_width, 100 * 3 + 80 * 3 + 5, 100, 95 },
+	SDL_Rect rect_logout = { board_width + 10, 65, 80, 80 };
+	SDL_Rect rect_return = { board_width + 10, 65 * 2 + 80, 80, 80 };
+	SDL_Rect rect_flag = { board_width + 10, 65 * 3 + 80 * 2, 80, 80 };
+	SDL_Rect rect_restart = { board_width + 10, 65 * 4 + 80 * 3, 80, 80 };
+	SDL_Rect rects_menu_bar[5] = {
+			{ board_width, 0 , 100, 60 },
+			{ board_width, 65 + 80 + 5, 100, 55 },
+			{ board_width, 65 * 2 + 80 * 2 + 5, 100, 55 },
+			{ board_width, 65 * 3 + 80 * 3 + 5, 100, 55 },
+			{ board_width, 65 * 4 + 80 * 4 + 5, 100, 60 },
 	};
 
 	std::string table[8][8] = {
@@ -939,9 +1025,6 @@ int SDL_main(int argc, char* argv[])
 		{ "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP"},
 		{ "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"},
 	};
-
-	// 0 - 15 black, 16 - 31 white
-	// 8 - 15 pawns, 24 - 31 pawns
 
 	#pragma region Destinations
 	SDL_Rect pieces[32];
@@ -984,14 +1067,20 @@ int SDL_main(int argc, char* argv[])
 	int num_chosen_piece = 0;
 	int num_last_moved_piece = -1;
 	int moves_num = 0;
-	
+	int mode = 0;
+
 	bool game_over = false;
 	bool isChosen = false;
 	bool isCheck = false;
 	bool turn_move = true;
 	bool available_move = false;
 
-	//LoadMusic();
+	bool isMusic = false;
+	bool isChunk = false;
+	int board_design = 1;
+	int pieces_design = 1;
+
+	LoadMusic(isMusic);
 
 	#pragma region FirstMoveRecording;
 	for (int i = 0; i < 8; i++)
@@ -1025,289 +1114,372 @@ int SDL_main(int argc, char* argv[])
 		{
 			switch (ev.type)
 			{
-			case SDL_QUIT:
-				isRunning = false;
-				break;
-			case SDL_MOUSEBUTTONDOWN:
-				if (ev.button.button == SDL_BUTTON_LEFT)
-				{
-					chosen_field[0] = ev.button.y / size_field;
-					chosen_field[1] = ev.button.x / size_field;
-					if ((ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < board_width) && (ev.button.y < board_height))
-					{
-						if ((table[chosen_field[0]][chosen_field[1]] != "--") && !game_over)
-						{
-							dst_chosen_piece[0] = chosen_field[1] * size_field;
-							dst_chosen_piece[1] = chosen_field[0] * size_field;
-							if ((turn_move == false) && (table[chosen_field[0]][chosen_field[1]][0] == 'w'))
-								std::cout << "It's black's turn now" << std::endl;
-							else if ((turn_move == true) && (table[chosen_field[0]][chosen_field[1]][0] == 'b'))
-								std::cout << "It's white's turn now" << std::endl;
-							else
-								if (((ev.button.x > dst_chosen_piece[0] + miss) && (ev.button.x + miss < dst_chosen_piece[0] + size_field)) &&
-									((ev.button.y > dst_chosen_piece[1] + miss) && (ev.button.y + miss < dst_chosen_piece[1] + size_field)))
-								{
-									std::cout << "you chose the " << table[chosen_field[0]][chosen_field[1]] << std::endl;
-									for (int i = 0; i < 32; i++)
-									{
-										if ((pieces[i].x == dst_chosen_piece[0]) && (pieces[i].y == dst_chosen_piece[1]))
-										{
-											isChosen = true;
-											num_chosen_piece = i;
-											break;
-										}
-									}
-								}
-								else std::cout << "miss click protection" << std::endl;
-						}
-						else if ((table[chosen_field[0]][chosen_field[1]] == "--") && !game_over) std::cout << "you clicked on an empty field" << std::endl;
-						else std::cout << "game over" << "\n";
-					}
-					else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_logout.y - 5) && 
-						(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_logout.y + rect_logout.h + 5))
-					{
-						std::cout << "logout" << "\n\n";
-						DeInit(0);
-					}
-					else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_return.y - 5) && 
-						(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_return.y + rect_return.h + 5))
-					{
-						#pragma region MoveReturn
-						if (moves_num > 0)
-						{
-							moves_num--;
-							for (int i = 0; i < 8; i++)
-								for (int j = 0; j < 8; j++)
-									table[i][j] = moves_history[moves_num].table[i][j];
-
-							for (int i = 0; i < 32; i++)
-							{
-								pieces[i].x = moves_history[moves_num].pieces[i].x;
-								pieces[i].y = moves_history[moves_num].pieces[i].y;
-								pieces[i].w = moves_history[moves_num].pieces[i].w;
-								pieces[i].h = moves_history[moves_num].pieces[i].h;
-							}
-
-							for (int i = 0; i < 32; i++)
-								textures[i] = moves_history[moves_num].textures[i];
-							
-							game_over = moves_history[moves_num].game_over;
-							num_last_moved_piece = moves_history[moves_num].num_last_moved_piece;
-							turn_move = moves_history[moves_num].turn_move;
-							isCheck = moves_history[moves_num].isCheck;
-
-							for (int i = 0; i < 6; i++)
-								castling[i] = moves_history[moves_num].castling[i];
-							std::cout << "you returned the move" << "\n\n";
-							PrintTable(table);
-						}
-						else
-							std::cout << "you haven't made any moves yet" << "\n\n";
-						#pragma endregion
-					}
-					else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_flag.y - 5) && 
-						(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_flag.y + rect_flag.h + 5) && !game_over)
-					{
-						if (turn_move) std::cout << "black won" << "\n\n";
-						else std::cout << "white won" << "\n\n";
-						Sound1("music/victory_draw.wav");
-						game_over = true;
-					}
-					else std::cout << "empty" << std::endl;
-				}
-				break;
-				case SDL_MOUSEMOTION:
-				if (isChosen)
-				{
-					pieces[num_chosen_piece].x = ev.motion.x - 40;
-					pieces[num_chosen_piece].y = ev.motion.y - 40;
-				}
-				break;
-			case SDL_MOUSEBUTTONUP:
-				if (ev.button.button == SDL_BUTTON_LEFT)
-				{
-					isCastling = false;
-					isEnPassant = false;
-					become_field[0] = ev.button.y / size_field;
-					become_field[1] = ev.button.x / size_field;
-					dst_become_piece[0] = become_field[1] * size_field;
-					dst_become_piece[1] = become_field[0] * size_field;
-
-					if ((isChosen == 1) && (ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < board_width) && (ev.button.y < board_height) && 
-						!((become_field[0] == chosen_field[0]) && (become_field[1] == chosen_field[1])) && 
-						(table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]))
-					{
-						if (table[chosen_field[0]][chosen_field[1]][1] == 'K')
-							CheckCastling1(turn_move, become_field, table, pieces, chosen_field, &available_move, &isCastling);
-						else if ((table[chosen_field[0]][chosen_field[1]][1] == 'P') && (table[become_field[0]][become_field[1]] == "--"))
-							CheckEnPassant1(turn_move, table, pieces, chosen_field, become_field, &available_move, &isEnPassant, dst_become_piece, num_last_moved_piece);
-						else
-							available_move = AvailableMove(chosen_field, become_field, table) &&
-							!Check1(turn_move, chosen_field, become_field, table, pieces);
-						if (available_move)
-						{ 
-							if (isCastling) std::cout << "you castled" << "\n\n";
-							else if (isEnPassant) std::cout << "you captured en passant" << "\n\n";
-							else std::cout << "you moved the " << table[chosen_field[0]][chosen_field[1]] << "\n\n";
-
-							if ((table[become_field[0]][become_field[1]] == "--") && !isEnPassant) Sound0("music/move.wav");
-							else Sound0("music/take.wav");
-							
-
-							if (table[become_field[0]][become_field[1]] != "--")
-							{
-								for (int i = 0; i < 32; i++)
-								{
-									if ((pieces[i].x == dst_become_piece[0]) && (pieces[i].y == dst_become_piece[1]))
-									{
-										pieces[i].x = -100;
-										pieces[i].y = -100;
-										break;
-									}
-								}
-							}
-
-							pieces[num_chosen_piece].x = dst_become_piece[0];
-							pieces[num_chosen_piece].y = dst_become_piece[1];
-							table[become_field[0]][become_field[1]] = table[chosen_field[0]][chosen_field[1]];
-							table[chosen_field[0]][chosen_field[1]] = "--";
-							turn_move = !turn_move;
-							available_move = false;
-							isCheck = false;
-							num_last_moved_piece = num_chosen_piece;
-							
-							if (turn_move && (num_last_moved_piece >= 8) && (num_last_moved_piece <= 16))
-							{
-								if (become_field[0] == 7)
-								{
-									textures[num_last_moved_piece] = tex_bq;
-									table[become_field[0]][become_field[1]] = "bQ";
-								}
-							}		
-							else if (!turn_move && (num_last_moved_piece >= 24) && (num_last_moved_piece <= 32))
-							{
-								if (become_field[0] == 0)
-								{
-									textures[num_last_moved_piece] = tex_wq;
-									table[become_field[0]][become_field[1]] = "wQ";
-								}
-							}					
-
-							PrintTable(table);
-
-							if (!((pieces[4].x == 4 * size_field) && (pieces[4].y == 0)))
-								castling[0] = false;
-							if (!((pieces[0].x == 0) && (pieces[0].y == 0)))
-								castling[1] = false;
-							if (!((pieces[7].x == 7 * size_field) && (pieces[7].y == 0)))
-								castling[2] = false;
-							if (!((pieces[20].x == 4 * size_field) && (pieces[20].y == 7 * size_field)))
-								castling[3] = false;
-							if (!((pieces[16].x == 0) && (pieces[16].y == 7 * size_field)))
-								castling[4] = false;
-							if (!((pieces[23].x == 7 * size_field) && (pieces[23].y == 7 * size_field)))
-								castling[5] = false;		
-
-							if (Draw(turn_move, table, pieces))
-							{
-								std::cout << "draw" << "\n\n";
-								Sound1("music/victory_draw.wav");
-								game_over = true;
-							}
-							
-							else if (Check2(turn_move, table, pieces))
-							{
-								isCheck = true;
-								if (Checkmate(turn_move, table, pieces, num_last_moved_piece))
-								{
-									std::string winner = "white";
-									if (turn_move) winner = "black";
-									std::cout << "checkmate, " << winner << " won" << "\n\n";
-									Sound1("music/victory_draw.wav");
-									game_over = true;
-								}
-								else std::cout << "check" << "\n\n";
-							}
-
-							else if (Stalemate(turn_move, table, pieces, num_last_moved_piece))
-							{
-								std::cout << "stalemate" << "\n\n";
-								Sound1("music/victory_draw.wav");
-								game_over = true;
-							}
-
-							#pragma region MoveRecording
-							moves_num++;
-							for (int i = 0; i < 8; i++)
-								for (int j = 0; j < 8; j++)
-									moves_history[moves_num].table[i][j] = table[i][j];
-
-							for (int i = 0; i < 32; i++)
-							{
-								moves_history[moves_num].pieces[i].x = pieces[i].x;
-								moves_history[moves_num].pieces[i].y = pieces[i].y;
-								moves_history[moves_num].pieces[i].w = pieces[i].w;
-								moves_history[moves_num].pieces[i].h = pieces[i].h;
-							}
-
-							for (int i = 0; i < 32; i++)
-								moves_history[moves_num].textures[i] = textures[i];
-
-							moves_history[moves_num].game_over = game_over;
-							moves_history[moves_num].num_last_moved_piece = num_last_moved_piece;
-							moves_history[moves_num].turn_move = turn_move;
-							moves_history[moves_num].isCheck = isCheck;
-
-							for (int i = 0; i < 6; i++)
-								moves_history[moves_num].castling[i] = castling[i];
-							#pragma endregion
-						}
-						else
-						{
-							std::cout << "this move is impossible" << std::endl;
-							pieces[num_chosen_piece].x = dst_chosen_piece[0];
-							pieces[num_chosen_piece].y = dst_chosen_piece[1];;
-						}
-					}
-					else if (isChosen && !((dst_become_piece[0] == dst_chosen_piece[0]) &&
-						(dst_become_piece[1] == dst_chosen_piece[1])))
-					{
-						std::cout << "this move is impossible" << std::endl;
-						pieces[num_chosen_piece].x = dst_chosen_piece[0];
-						pieces[num_chosen_piece].y = dst_chosen_piece[1];
-					}
-					else if (isChosen && (dst_become_piece[0] == dst_chosen_piece[0]) &&
-						(dst_become_piece[1] == dst_chosen_piece[1]))
-					{
-						std::cout << "you put the " << table[become_field[0]][become_field[1]] << " back" << std::endl;
-						pieces[num_chosen_piece].x = dst_chosen_piece[0];
-						pieces[num_chosen_piece].y = dst_chosen_piece[1];
-					}
-					isChosen = false;
-				}
-				break;
-			case SDL_KEYDOWN:
-				switch (ev.key.keysym.scancode)
-				{
-				case SDL_SCANCODE_ESCAPE:
+				case SDL_QUIT:
 					isRunning = false;
 					break;
-				}
-				break;
+				case SDL_MOUSEBUTTONDOWN:
+					if (ev.button.button == SDL_BUTTON_LEFT)
+					{
+						if (mode == 0)
+						{
+							#pragma region Menu
+							if ((ev.button.x > rect_settings.x) && (ev.button.y > rect_settings.y) &&
+								(ev.button.x < rect_settings.x + rect_settings.w) && (ev.button.y < rect_settings.y + rect_settings.h))
+							{
+								std::cout << "settings" << "\n\n";
+								mode = 3;
+							}
+							else if ((ev.button.x > rect_mode1.x) && (ev.button.y > rect_mode1.y) &&
+								(ev.button.x < rect_mode1.x + rect_mode1.w) && (ev.button.y < rect_mode1.y + rect_mode1.h))
+							{
+								std::cout << "mode1" << "\n\n";
+								mode = 1;
+							}
+							else if ((ev.button.x > rect_mode2.x) && (ev.button.y > rect_mode2.y) &&
+								(ev.button.x < rect_mode2.x + rect_mode2.w) && (ev.button.y < rect_mode2.y + rect_mode2.h))
+							{
+								std::cout << "mode2" << "\n\n";
+							}
+							else if ((ev.button.x > rect_quit.x) && (ev.button.y > rect_quit.y) &&
+								(ev.button.x < rect_quit.x + rect_quit.w) && (ev.button.y < rect_quit.y + rect_quit.h))
+							{
+								std::cout << "quit" << "\n\n";
+								DeInit(0);
+							}
+							#pragma endregion
+						}
+						else if (mode == 1)
+						{
+							#pragma region Mode1(1)
+							chosen_field[0] = ev.button.y / size_field;
+							chosen_field[1] = ev.button.x / size_field;
+							if ((ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < board_width) && (ev.button.y < board_height))
+							{
+								if ((table[chosen_field[0]][chosen_field[1]] != "--") && !game_over)
+								{
+									dst_chosen_piece[0] = chosen_field[1] * size_field;
+									dst_chosen_piece[1] = chosen_field[0] * size_field;
+									if ((turn_move == false) && (table[chosen_field[0]][chosen_field[1]][0] == 'w'))
+										std::cout << "It's black's turn now" << std::endl;
+									else if ((turn_move == true) && (table[chosen_field[0]][chosen_field[1]][0] == 'b'))
+										std::cout << "It's white's turn now" << std::endl;
+									else
+										if (((ev.button.x > dst_chosen_piece[0] + miss) && (ev.button.x + miss < dst_chosen_piece[0] + size_field)) &&
+											((ev.button.y > dst_chosen_piece[1] + miss) && (ev.button.y + miss < dst_chosen_piece[1] + size_field)))
+										{
+											std::cout << "you chose the " << table[chosen_field[0]][chosen_field[1]] << std::endl;
+											for (int i = 0; i < 32; i++)
+											{
+												if ((pieces[i].x == dst_chosen_piece[0]) && (pieces[i].y == dst_chosen_piece[1]))
+												{
+													isChosen = true;
+													num_chosen_piece = i;
+													break;
+												}
+											}
+										}
+										else std::cout << "miss click protection" << std::endl;
+								}
+								else if ((table[chosen_field[0]][chosen_field[1]] == "--") && !game_over) std::cout << "you clicked on an empty field" << std::endl;
+								else std::cout << "game over" << "\n";
+							}
+
+							#pragma region MenuBar
+
+							else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_logout.y - 5) && 
+								(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_logout.y + rect_logout.h + 5))
+							{
+								std::cout << "you have entered the menu" << "\n\n";
+								mode = 0;
+							}
+							else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_return.y - 5) && 
+								(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_return.y + rect_return.h + 5))
+							{
+								if (moves_num != 0)
+								{
+								moves_num--;
+								ReturnMove(moves_num, &turn_move, table, pieces, &game_over, &num_last_moved_piece, &isCheck, textures, moves_history);
+								std::cout << "you returned the move" << "\n\n";
+								}
+								else std::cout << "the game hasn't started yet" << "\n\n";
+							}
+							else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_flag.y - 5) && 
+								(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_flag.y + rect_flag.h + 5))
+							{
+								if ((moves_num != 0) && !game_over)
+								{
+									if (turn_move) std::cout << "black won" << "\n\n";
+									else std::cout << "white won" << "\n\n";
+									Sound1("music/victory_draw.wav", isChunk);
+									game_over = true;
+								}
+								else if (game_over) std::cout << "the game is over" << "\n\n";
+								else std::cout << "the game hasn't started yet" << "\n\n";
+							}
+							else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_restart.y - 5) &&
+								(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_restart.y + rect_restart.h + 5))
+							{
+								if (moves_num != 0)
+								{
+									moves_num = 0;
+									ReturnMove(moves_num, &turn_move, table, pieces, &game_over, &num_last_moved_piece, &isCheck, textures, moves_history);
+									std::cout << "you restart the game" << "\n\n";
+									PrintTable(table);
+								}
+								else std::cout << "the game hasn't started yet" << "\n\n";
+							}
+							else std::cout << "empty" << std::endl;
+							#pragma endregion
+
+							#pragma endregion
+						}
+						else if (mode == 3)
+						{
+							if ((ev.button.x > rect_back.x) && (ev.button.y > rect_back.y) &&
+								(ev.button.x < rect_back.x + rect_settings.w) && (ev.button.y < rect_back.y + rect_back.h))
+							{
+								std::cout << "back" << "\n\n";
+								mode = 0;
+							}
+						}
+					}
+					break;
+					case SDL_MOUSEMOTION:
+					if (mode == 1)
+					{
+						if (isChosen)
+						{
+							pieces[num_chosen_piece].x = ev.motion.x - 40;
+							pieces[num_chosen_piece].y = ev.motion.y - 40;
+						}	
+					}
+					break;
+				case SDL_MOUSEBUTTONUP:
+					if (ev.button.button == SDL_BUTTON_LEFT)
+					{
+						if (mode == 1)
+						{
+							#pragma region Mode1(2)
+							isCastling = false;
+							isEnPassant = false;
+							become_field[0] = ev.button.y / size_field;
+							become_field[1] = ev.button.x / size_field;
+							dst_become_piece[0] = become_field[1] * size_field;
+							dst_become_piece[1] = become_field[0] * size_field;
+
+							if ((isChosen == 1) && (ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < board_width) && (ev.button.y < board_height) && 
+								!((become_field[0] == chosen_field[0]) && (become_field[1] == chosen_field[1])) && 
+								(table[chosen_field[0]][chosen_field[1]][0] != table[become_field[0]][become_field[1]][0]))
+							{
+								if (table[chosen_field[0]][chosen_field[1]][1] == 'K')
+									CheckCastling1(turn_move, become_field, table, pieces, chosen_field, &available_move, &isCastling);
+								else if ((table[chosen_field[0]][chosen_field[1]][1] == 'P') && (table[become_field[0]][become_field[1]] == "--"))
+									CheckEnPassant1(turn_move, table, pieces, chosen_field, become_field, &available_move, &isEnPassant, dst_become_piece, num_last_moved_piece);
+								else
+									available_move = AvailableMove(chosen_field, become_field, table) &&
+									!Check1(turn_move, chosen_field, become_field, table, pieces);
+								if (available_move)
+								{ 
+									if (isCastling) std::cout << "you castled" << "\n\n";
+									else if (isEnPassant) std::cout << "you captured en passant" << "\n\n";
+									else std::cout << "you moved the " << table[chosen_field[0]][chosen_field[1]] << "\n\n";
+
+									if ((table[become_field[0]][become_field[1]] == "--") && !isEnPassant) Sound0("music/move.wav", isChunk);
+									else Sound0("music/take.wav", isChunk);
+
+									if (table[become_field[0]][become_field[1]] != "--")
+									{
+										for (int i = 0; i < 32; i++)
+										{
+											if ((pieces[i].x == dst_become_piece[0]) && (pieces[i].y == dst_become_piece[1]))
+											{
+												pieces[i].x = -100;
+												pieces[i].y = -100;
+												break;
+											}
+										}
+									}
+
+									pieces[num_chosen_piece].x = dst_become_piece[0];
+									pieces[num_chosen_piece].y = dst_become_piece[1];
+									table[become_field[0]][become_field[1]] = table[chosen_field[0]][chosen_field[1]];
+									table[chosen_field[0]][chosen_field[1]] = "--";
+									turn_move = !turn_move;
+									available_move = false;
+									isCheck = false;
+									num_last_moved_piece = num_chosen_piece;
+							
+									if (turn_move && (num_last_moved_piece >= 8) && (num_last_moved_piece <= 16))
+									{
+										if (become_field[0] == 7)
+										{
+											textures[num_last_moved_piece] = tex_bq;
+											table[become_field[0]][become_field[1]] = "bQ";
+										}
+									}		
+									else if (!turn_move && (num_last_moved_piece >= 24) && (num_last_moved_piece <= 32))
+									{
+										if (become_field[0] == 0)
+										{
+											textures[num_last_moved_piece] = tex_wq;
+											table[become_field[0]][become_field[1]] = "wQ";
+										}
+									}					
+
+									PrintTable(table);
+
+									if (!((pieces[4].x == 4 * size_field) && (pieces[4].y == 0)))
+										castling[0] = false;
+									if (!((pieces[0].x == 0) && (pieces[0].y == 0)))
+										castling[1] = false;
+									if (!((pieces[7].x == 7 * size_field) && (pieces[7].y == 0)))
+										castling[2] = false;
+									if (!((pieces[20].x == 4 * size_field) && (pieces[20].y == 7 * size_field)))
+										castling[3] = false;
+									if (!((pieces[16].x == 0) && (pieces[16].y == 7 * size_field)))
+										castling[4] = false;
+									if (!((pieces[23].x == 7 * size_field) && (pieces[23].y == 7 * size_field)))
+										castling[5] = false;		
+
+									if (Draw(turn_move, table, pieces))
+									{
+										std::cout << "draw" << "\n\n";
+										Sound1("music/victory_draw.wav", isChunk);
+										game_over = true;
+									}
+							
+									else if (Check2(turn_move, table, pieces))
+									{
+										isCheck = true;
+										if (Checkmate(turn_move, table, pieces, num_last_moved_piece))
+										{
+											std::string winner = "white";
+											if (turn_move) winner = "black";
+											std::cout << "checkmate, " << winner << " won" << "\n\n";
+											Sound1("music/victory_draw.wav", isChunk);
+											game_over = true;
+										}
+										else std::cout << "check" << "\n\n";
+									}
+
+									else if (Stalemate(turn_move, table, pieces, num_last_moved_piece))
+									{
+										std::cout << "stalemate" << "\n\n";
+										Sound1("music/victory_draw.wav", isChunk);
+										game_over = true;
+									}
+
+									#pragma region MoveRecording
+									moves_num++;
+									for (int i = 0; i < 8; i++)
+										for (int j = 0; j < 8; j++)
+											moves_history[moves_num].table[i][j] = table[i][j];
+
+									for (int i = 0; i < 32; i++)
+									{
+										moves_history[moves_num].pieces[i].x = pieces[i].x;
+										moves_history[moves_num].pieces[i].y = pieces[i].y;
+										moves_history[moves_num].pieces[i].w = pieces[i].w;
+										moves_history[moves_num].pieces[i].h = pieces[i].h;
+									}
+
+									for (int i = 0; i < 32; i++)
+										moves_history[moves_num].textures[i] = textures[i];
+
+									moves_history[moves_num].game_over = game_over;
+									moves_history[moves_num].num_last_moved_piece = num_last_moved_piece;
+									moves_history[moves_num].turn_move = turn_move;
+									moves_history[moves_num].isCheck = isCheck;
+
+									for (int i = 0; i < 6; i++)
+										moves_history[moves_num].castling[i] = castling[i];
+									#pragma endregion
+								}
+								else
+								{
+									std::cout << "this move is impossible" << std::endl;
+									pieces[num_chosen_piece].x = dst_chosen_piece[0];
+									pieces[num_chosen_piece].y = dst_chosen_piece[1];;
+								}
+							}
+							else if (isChosen && !((dst_become_piece[0] == dst_chosen_piece[0]) &&
+								(dst_become_piece[1] == dst_chosen_piece[1])))
+							{
+								std::cout << "this move is impossible" << std::endl;
+								pieces[num_chosen_piece].x = dst_chosen_piece[0];
+								pieces[num_chosen_piece].y = dst_chosen_piece[1];
+							}
+							else if (isChosen && (dst_become_piece[0] == dst_chosen_piece[0]) &&
+								(dst_become_piece[1] == dst_chosen_piece[1]))
+							{
+								std::cout << "you put the " << table[become_field[0]][become_field[1]] << " back" << std::endl;
+								pieces[num_chosen_piece].x = dst_chosen_piece[0];
+								pieces[num_chosen_piece].y = dst_chosen_piece[1];
+							}
+							isChosen = false;
+							#pragma endregion
+						}	
+					}
+					break;
+				case SDL_KEYDOWN:
+					switch (ev.key.keysym.scancode)
+					{
+					case SDL_SCANCODE_ESCAPE:
+						isRunning = false;
+						break;
+					}
+					break;
 			}
 		}
 
-		SDL_RenderCopy(ren, tex_board, NULL, &rect_board);
-		SDL_RenderCopy(ren, tex_menu_bar, NULL, &rect_menu_bar);
-		SDL_RenderCopy(ren, tex_logout, NULL, &rect_logout);
-		if (moves_num == 0) SDL_RenderCopy(ren, tex_return_gray, NULL, &rect_return);
-		else SDL_RenderCopy(ren, tex_return, NULL, &rect_return);
-		SDL_RenderCopy(ren, tex_flag, NULL, &rect_flag);
-		SDL_RenderFillRects(ren, rects, 4);
-		for (int i = 0; i < 32; i++) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
-		if (isChosen) RenAvailMove(turn_move, ren, tex_dot, tex_frame, tex_star, pieces, table, chosen_field, num_last_moved_piece);
-		if (isCheck) RenCheck(turn_move, table, tex_check);
-		for (int i = 0; i < 32; i++) if (i == num_chosen_piece) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
+		SDL_RenderClear(ren);
+
+		if (mode == 0)
+		{ 
+			SDL_RenderCopy(ren, tex_settings, NULL, &rect_settings);
+			SDL_RenderCopy(ren, tex_mode1, NULL, &rect_mode1);
+			SDL_RenderCopy(ren, tex_mode2, NULL, &rect_mode2);
+			SDL_RenderCopy(ren, tex_quit, NULL, &rect_quit);
+		}
+		
+		else if (mode == 1)
+		{
+			SDL_RenderCopy(ren, tex_board, NULL, &rect_board);
+			SDL_RenderCopy(ren, tex_menu_bar, NULL, &rect_menu_bar);
+			SDL_RenderCopy(ren, tex_logout, NULL, &rect_logout);
+
+			if (moves_num == 0)
+			{
+				SDL_RenderCopy(ren, tex_return_gray, NULL, &rect_return);
+				SDL_RenderCopy(ren, tex_restart_gray, NULL, &rect_restart);
+			}
+			else
+			{
+				SDL_RenderCopy(ren, tex_return, NULL, &rect_return);
+				SDL_RenderCopy(ren, tex_restart, NULL, &rect_restart);
+			}
+
+			if ((moves_num == 0) || game_over) SDL_RenderCopy(ren, tex_flag_gray, NULL, &rect_flag);
+			else SDL_RenderCopy(ren, tex_flag, NULL, &rect_flag);
+
+			SDL_RenderFillRects(ren, rects_menu_bar, 5);
+			for (int i = 0; i < 32; i++) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
+			if (isChosen) RenAvailMove(turn_move, ren, tex_dot, tex_frame, tex_star, pieces, table, chosen_field, num_last_moved_piece);
+			if (isCheck) RenCheck(turn_move, table, tex_check);
+			for (int i = 0; i < 32; i++) if (i == num_chosen_piece) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
+		}
+		
+		else if (mode == 3)
+		{
+			SDL_SetRenderDrawColor(ren, 105, 63, 181, 128);
+			SDL_RenderDrawRects(ren, rects_s, 6);
+			SDL_SetRenderDrawColor(ren, 0, 0, 0, 0);
+
+			SDL_RenderCopy(ren, tex_back, NULL, &rect_back);
+			SDL_RenderCopy(ren, tex_music, NULL, &rect_music);
+			SDL_RenderCopy(ren, tex_sound_effects, NULL, &rect_sound_effects);
+		}
+
 		SDL_RenderPresent(ren);
 		SDL_Delay(1000/fps);
 	}
@@ -1322,6 +1494,17 @@ int SDL_main(int argc, char* argv[])
 	SDL_DestroyTexture(tex_return);
 	SDL_DestroyTexture(tex_return_gray);
 	SDL_DestroyTexture(tex_flag);
+	SDL_DestroyTexture(tex_flag_gray);
+	SDL_DestroyTexture(tex_restart);
+	SDL_DestroyTexture(tex_restart_gray);
+	SDL_DestroyTexture(tex_menu);
+	SDL_DestroyTexture(tex_settings);
+	SDL_DestroyTexture(tex_mode1);
+	SDL_DestroyTexture(tex_mode2);
+	SDL_DestroyTexture(tex_quit);
+	SDL_DestroyTexture(tex_back);
+	SDL_DestroyTexture(tex_music);
+	SDL_DestroyTexture(tex_sound_effects);
 	SDL_DestroyTexture(tex_bb);
 	SDL_DestroyTexture(tex_bk);
 	SDL_DestroyTexture(tex_bn);
@@ -1337,6 +1520,7 @@ int SDL_main(int argc, char* argv[])
 	SDL_DestroyTexture(tex_board);
 	Mix_FreeMusic(background);
 	Mix_FreeChunk(sound);
+	TTF_CloseFont(font);
 	Mix_CloseAudio();
 	#pragma endregion
 
