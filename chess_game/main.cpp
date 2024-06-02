@@ -25,6 +25,9 @@ struct move
 	std::string table[8][8];
 	SDL_Rect pieces[32];
 	SDL_Texture* textures[32];
+	SDL_Texture* textures1[32];
+	SDL_Texture* textures2[32];
+	SDL_Texture* textures3[32];
 	bool game_over;
 	int num_last_moved_piece;
 	bool turn_move;
@@ -895,7 +898,19 @@ SDL_Texture* get_text_texture(SDL_Renderer*& ren, char* text, TTF_Font* font)
 }
 
 
-void ReturnMove(int moves_num, bool* turn_move, std::string table[8][8], SDL_Rect* pieces, bool* game_over, int* num, bool* isCheck, SDL_Texture* textures[32], move* moves_history)
+void ReturnTextures(int moves_num, SDL_Texture* textures[32], SDL_Texture* textures1[32], SDL_Texture* textures2[32], SDL_Texture* textures3[32], move* moves_history)
+{
+	for (int i = 0; i < 32; i++)
+	{
+		textures[i] = moves_history[moves_num].textures[i];
+		textures1[i] = moves_history[moves_num].textures1[i];
+		textures2[i] = moves_history[moves_num].textures2[i];
+		textures3[i] = moves_history[moves_num].textures3[i];
+	}
+}
+
+
+void ReturnMove(int moves_num, bool* turn_move, std::string table[8][8], SDL_Rect* pieces, bool* game_over, int* num, bool* isCheck, move* moves_history)
 {
 	for (int i = 0; i < 8; i++)
 		for (int j = 0; j < 8; j++)
@@ -909,9 +924,6 @@ void ReturnMove(int moves_num, bool* turn_move, std::string table[8][8], SDL_Rec
 		pieces[i].h = moves_history[moves_num].pieces[i].h;
 	}
 
-	for (int i = 0; i < 32; i++)
-		textures[i] = moves_history[moves_num].textures[i];
-
 	*game_over = moves_history[moves_num].game_over;
 	*num = moves_history[moves_num].num_last_moved_piece;
 	*turn_move = moves_history[moves_num].turn_move;
@@ -923,12 +935,40 @@ void ReturnMove(int moves_num, bool* turn_move, std::string table[8][8], SDL_Rec
 }
 
 
+void ChangeTextures(SDL_Texture* textures[32], SDL_Texture* textures1[32], SDL_Texture* textures2[32], SDL_Texture* textures3[32], int active_pieces)
+{
+	switch (active_pieces)
+	{
+	case 1:
+		for (int i = 0; i < 32; i++) textures[i] = textures1[i];
+		break;
+	case 2:
+		for (int i = 0; i < 32; i++) textures[i] = textures2[i];
+		break;
+	case 3:
+		for (int i = 0; i < 32; i++) textures[i] = textures3[i];
+		break;
+	}
+}
+
+
+void SaveSettings(bool isMusic, bool isChunk, int active_board, int active_pieces)
+{
+	std::ofstream file_settings("settings.txt");
+	file_settings << isMusic << std::endl;
+	file_settings << isChunk << std::endl;
+	file_settings << active_board << std::endl;
+	file_settings << active_pieces;
+	file_settings.close();
+}
+
+
 int SDL_main(int argc, char* argv[])
 {
 	Init();
 
+	#pragma region Menu&Settings&MenuBar
 	int height_font = 500;
-
 	TTF_Font* font = TTF_OpenFont("fonts/beer_money.ttf", height_font);
 	char text_settings[9] = "Settings";
 	char text_mode1[19] = "Play with a friend";
@@ -936,7 +976,9 @@ int SDL_main(int argc, char* argv[])
 	char text_quit[5] = "Quit";
 	char text_back[5] = "Back";
 	char text_music[6] = "Music";
-	char text_sound_effects[14] = "Sound Effects";
+	char text_sound_effects[14] = "Sound effects";
+	char text_board_design[13] = "Board design";
+	char text_pieces_design[14] = "Pieces design";
 	SDL_Texture* tex_settings = get_text_texture(ren, text_settings, font);
 	SDL_Texture* tex_mode1 = get_text_texture(ren, text_mode1, font);
 	SDL_Texture* tex_mode2 = get_text_texture(ren, text_mode2, font);
@@ -944,21 +986,64 @@ int SDL_main(int argc, char* argv[])
 	SDL_Texture* tex_back = get_text_texture(ren, text_back, font);
 	SDL_Texture* tex_music = get_text_texture(ren, text_music, font);
 	SDL_Texture* tex_sound_effects = get_text_texture(ren, text_sound_effects, font);
+	SDL_Texture* tex_board_design = get_text_texture(ren, text_board_design, font);
+	SDL_Texture* tex_pieces_design = get_text_texture(ren, text_pieces_design, font);
 	SDL_Rect rect_settings = { 220, 48, 300, 100 };
 	SDL_Rect rect_mode1 = { 110, 48 * 2 + 100, 520, 100 };
 	SDL_Rect rect_mode2 = { 170, 48 * 3 + 100 * 2, 400, 100 };
 	SDL_Rect rect_quit = { 270, 48 * 4 + 100 * 3, 200, 100 };
 	SDL_Rect rect_back = { 600, 10, 130, 70 };
-	SDL_Rect rect_music = { 10, 10, 150, 70 };
+	SDL_Rect rect_music = { 10, 15, 150, 70 };
 	SDL_Rect rect_sound_effects = { 10, 100, 300, 70 };
+	SDL_Rect rect_board_design = { 220, 185, 300, 70 };
+	SDL_Rect rect_pieces_design = { 220, 405, 300, 70 };
+
+	SDL_Rect rect_board_brown = { 95, 270, 120, 120 };
+	SDL_Rect rect_board_green = { 95 * 2 + 120, 270, 120, 120 };
+	SDL_Rect rect_board_blue = { 95 * 3 + 120 * 2, 270, 120, 120 };
+
+	SDL_Rect rect_pieces1 = { 95, 490, 120, 120 };
+	SDL_Rect rect_pieces2 = { 95 * 2 + 120, 490, 120, 120 };
+	SDL_Rect rect_pieces3 = { 95 * 3 + 120 * 2, 490, 120, 120 };
 
 	SDL_Rect rects_s[6];
 	for (int i = 0; i < 3; i++)
 	{
-		rects_s[i] = { 165 + i, 10 + i, 70 - 2 * i, 70 - 2 * i };
+		rects_s[i] = { 165 + i, 15 + i, 70 - 2 * i, 70 - 2 * i };
 		rects_s[i + 3] = { 315 + i, 100 + i, 70 - 2 * i, 70 - 2 * i };
 	}
-		
+
+	SDL_Rect rects_board_brown[5];
+	SDL_Rect rects_board_green[5];
+	SDL_Rect rects_board_blue[5];
+	SDL_Rect rects_pieces1[5];
+	SDL_Rect rects_pieces2[5];
+	SDL_Rect rects_pieces3[5];
+
+	for (int i = 5; i != 0; i--)
+	{
+		rects_board_brown[i - 1] = { 95 - i, 270 - i, 120 + 2 * i, 120 + 2 * i };
+		rects_pieces1[i - 1] = { 95 - i, 490 - i, 120 + 2 * i, 120 + 2 * i };
+	}
+	for (int i = 5; i != 0; i--) 
+	{
+		rects_board_green[i - 1] = { 95 * 2 + 120 - i, 270 - i, 120 + 2 * i, 120 + 2 * i };
+		rects_pieces2[i - 1] = { 95 * 2 + 120 - i, 490 - i, 120 + 2 * i, 120 + 2 * i };
+	}
+	for (int i = 5; i != 0; i--) 
+	{
+		rects_board_blue[i - 1] = { 95 * 3 + 120 * 2 - i, 270 - i, 120 + 2 * i, 120 + 2 * i };
+		rects_pieces3[i - 1] = { 95 * 3 + 120 * 2 - i, 490 - i, 120 + 2 * i, 120 + 2 * i };
+	}
+
+	SDL_Rect rect_board = { 0, 0, board_width, board_height };
+	SDL_Rect rect_menu_bar = { board_width, 0, menu_bar, board_height };
+	SDL_Rect rect_logout = { board_width + 10, 65, 80, 80 };
+	SDL_Rect rect_return = { board_width + 10, 65 * 2 + 80, 80, 80 };
+	SDL_Rect rect_flag = { board_width + 10, 65 * 3 + 80 * 2, 80, 80 };
+	SDL_Rect rect_restart = { board_width + 10, 65 * 4 + 80 * 3, 80, 80 };
+	#pragma endregion
+
 	#pragma region LoadTexture
 	SDL_Texture* tex_dot = LoadTextureFromFile("pictures/dot.png");
 	SDL_Texture* tex_frame = LoadTextureFromFile("pictures/frame.png");
@@ -971,60 +1056,68 @@ int SDL_main(int argc, char* argv[])
 	SDL_Texture* tex_flag_gray = LoadTextureFromFile("pictures/flag_gray.png");
 	SDL_Texture* tex_restart = LoadTextureFromFile("pictures/restart.png");
 	SDL_Texture* tex_restart_gray = LoadTextureFromFile("pictures/restart_gray.png");
+	SDL_Texture* tex_tick = LoadTextureFromFile("pictures/tick.png");
+	SDL_Texture* tex_cross = LoadTextureFromFile("pictures/cross.png");
 	SDL_Texture* tex_menu_bar = LoadTextureFromFile("pictures/menu_bar.png");
 	SDL_Texture* tex_menu = LoadTextureFromFile("pictures/menu.jpg");
-	SDL_Texture* tex_wb = LoadTextureFromFile("pictures/pieces1/wb.png");
-	SDL_Texture* tex_wk = LoadTextureFromFile("pictures/pieces1/wk.png");
-	SDL_Texture* tex_wn = LoadTextureFromFile("pictures/pieces1/wn.png");
-	SDL_Texture* tex_wp = LoadTextureFromFile("pictures/pieces1/wp.png");
-	SDL_Texture* tex_wq = LoadTextureFromFile("pictures/pieces1/wq.png");
-	SDL_Texture* tex_wr = LoadTextureFromFile("pictures/pieces1/wr.png");
-	SDL_Texture* tex_bb = LoadTextureFromFile("pictures/pieces1/bb.png");
-	SDL_Texture* tex_bk = LoadTextureFromFile("pictures/pieces1/bk.png");
-	SDL_Texture* tex_bn = LoadTextureFromFile("pictures/pieces1/bn.png");
-	SDL_Texture* tex_bp = LoadTextureFromFile("pictures/pieces1/bp.png");
-	SDL_Texture* tex_bq = LoadTextureFromFile("pictures/pieces1/bq.png");
-	SDL_Texture* tex_br = LoadTextureFromFile("pictures/pieces1/br.png");
-	SDL_Texture* tex_board = LoadTextureFromFile("pictures/brown.png");
-	SDL_Texture* textures[32] = {
-			tex_br, tex_bn, tex_bb, tex_bq, tex_bk, tex_bb, tex_bn, tex_br,
-			tex_bp, tex_bp, tex_bp, tex_bp, tex_bp, tex_bp, tex_bp, tex_bp,
-			tex_wr, tex_wn, tex_wb, tex_wq, tex_wk, tex_wb, tex_wn, tex_wr,
-			tex_wp, tex_wp, tex_wp, tex_wp, tex_wp, tex_wp, tex_wp, tex_wp
+	SDL_Texture* tex_wb1 = LoadTextureFromFile("pictures/pieces1/wb.png");
+	SDL_Texture* tex_wk1 = LoadTextureFromFile("pictures/pieces1/wk.png");
+	SDL_Texture* tex_wn1 = LoadTextureFromFile("pictures/pieces1/wn.png");
+	SDL_Texture* tex_wp1 = LoadTextureFromFile("pictures/pieces1/wp.png");
+	SDL_Texture* tex_wq1 = LoadTextureFromFile("pictures/pieces1/wq.png");
+	SDL_Texture* tex_wr1 = LoadTextureFromFile("pictures/pieces1/wr.png");
+	SDL_Texture* tex_bb1 = LoadTextureFromFile("pictures/pieces1/bb.png");
+	SDL_Texture* tex_bk1 = LoadTextureFromFile("pictures/pieces1/bk.png");
+	SDL_Texture* tex_bn1 = LoadTextureFromFile("pictures/pieces1/bn.png");
+	SDL_Texture* tex_bp1 = LoadTextureFromFile("pictures/pieces1/bp.png");
+	SDL_Texture* tex_bq1 = LoadTextureFromFile("pictures/pieces1/bq.png");
+	SDL_Texture* tex_br1 = LoadTextureFromFile("pictures/pieces1/br.png");
+	SDL_Texture* tex_wb2 = LoadTextureFromFile("pictures/pieces2/wb.png");
+	SDL_Texture* tex_wk2 = LoadTextureFromFile("pictures/pieces2/wk.png");
+	SDL_Texture* tex_wn2 = LoadTextureFromFile("pictures/pieces2/wn.png");
+	SDL_Texture* tex_wp2 = LoadTextureFromFile("pictures/pieces2/wp.png");
+	SDL_Texture* tex_wq2 = LoadTextureFromFile("pictures/pieces2/wq.png");
+	SDL_Texture* tex_wr2 = LoadTextureFromFile("pictures/pieces2/wr.png");
+	SDL_Texture* tex_bb2 = LoadTextureFromFile("pictures/pieces2/bb.png");
+	SDL_Texture* tex_bk2 = LoadTextureFromFile("pictures/pieces2/bk.png");
+	SDL_Texture* tex_bn2 = LoadTextureFromFile("pictures/pieces2/bn.png");
+	SDL_Texture* tex_bp2 = LoadTextureFromFile("pictures/pieces2/bp.png");
+	SDL_Texture* tex_bq2 = LoadTextureFromFile("pictures/pieces2/bq.png");
+	SDL_Texture* tex_br2 = LoadTextureFromFile("pictures/pieces2/br.png");
+	SDL_Texture* tex_wb3 = LoadTextureFromFile("pictures/pieces3/wb.png");
+	SDL_Texture* tex_wk3 = LoadTextureFromFile("pictures/pieces3/wk.png");
+	SDL_Texture* tex_wn3 = LoadTextureFromFile("pictures/pieces3/wn.png");
+	SDL_Texture* tex_wp3 = LoadTextureFromFile("pictures/pieces3/wp.png");
+	SDL_Texture* tex_wq3 = LoadTextureFromFile("pictures/pieces3/wq.png");
+	SDL_Texture* tex_wr3 = LoadTextureFromFile("pictures/pieces3/wr.png");
+	SDL_Texture* tex_bb3 = LoadTextureFromFile("pictures/pieces3/bb.png");
+	SDL_Texture* tex_bk3 = LoadTextureFromFile("pictures/pieces3/bk.png");
+	SDL_Texture* tex_bn3 = LoadTextureFromFile("pictures/pieces3/bn.png");
+	SDL_Texture* tex_bp3 = LoadTextureFromFile("pictures/pieces3/bp.png");
+	SDL_Texture* tex_bq3 = LoadTextureFromFile("pictures/pieces3/bq.png");
+	SDL_Texture* tex_br3 = LoadTextureFromFile("pictures/pieces3/br.png");
+	SDL_Texture* textures1[32] = {
+			tex_br1, tex_bn1, tex_bb1, tex_bq1, tex_bk1, tex_bb1, tex_bn1, tex_br1,
+			tex_bp1, tex_bp1, tex_bp1, tex_bp1, tex_bp1, tex_bp1, tex_bp1, tex_bp1,
+			tex_wr1, tex_wn1, tex_wb1, tex_wq1, tex_wk1, tex_wb1, tex_wn1, tex_wr1,
+			tex_wp1, tex_wp1, tex_wp1, tex_wp1, tex_wp1, tex_wp1, tex_wp1, tex_wp1
 	};
+	SDL_Texture* textures2[32] = {
+			tex_br2, tex_bn2, tex_bb2, tex_bq2, tex_bk2, tex_bb2, tex_bn2, tex_br2,
+			tex_bp2, tex_bp2, tex_bp2, tex_bp2, tex_bp2, tex_bp2, tex_bp2, tex_bp2,
+			tex_wr2, tex_wn2, tex_wb2, tex_wq2, tex_wk2, tex_wb2, tex_wn2, tex_wr2,
+			tex_wp2, tex_wp2, tex_wp2, tex_wp2, tex_wp2, tex_wp2, tex_wp2, tex_wp2
+	};
+	SDL_Texture* textures3[32] = {
+			tex_br3, tex_bn3, tex_bb3, tex_bq3, tex_bk3, tex_bb3, tex_bn3, tex_br3,
+			tex_bp3, tex_bp3, tex_bp3, tex_bp3, tex_bp3, tex_bp3, tex_bp3, tex_bp3,
+			tex_wr3, tex_wn3, tex_wb3, tex_wq3, tex_wk3, tex_wb3, tex_wn3, tex_wr3,
+			tex_wp3, tex_wp3, tex_wp3, tex_wp3, tex_wp3, tex_wp3, tex_wp3, tex_wp3
+	};
+	SDL_Texture* tex_board_brown = LoadTextureFromFile("pictures/brown.png");
+	SDL_Texture* tex_board_green = LoadTextureFromFile("pictures/green.png");
+	SDL_Texture* tex_board_blue = LoadTextureFromFile("pictures/blue.png");
 	#pragma endregion
-
-	move moves_history[200];
-
-	bool isRunning = true;
-	bool isCastling = false;
-	bool isEnPassant = false;
-
-	SDL_Event ev;
-	SDL_Rect rect_board = { 0, 0, board_width, board_height };
-	SDL_Rect rect_menu_bar = { board_width, 0, menu_bar, board_height };
-	SDL_Rect rect_logout = { board_width + 10, 65, 80, 80 };
-	SDL_Rect rect_return = { board_width + 10, 65 * 2 + 80, 80, 80 };
-	SDL_Rect rect_flag = { board_width + 10, 65 * 3 + 80 * 2, 80, 80 };
-	SDL_Rect rect_restart = { board_width + 10, 65 * 4 + 80 * 3, 80, 80 };
-	SDL_Rect rects_menu_bar[5] = {
-			{ board_width, 0 , 100, 60 },
-			{ board_width, 65 + 80 + 5, 100, 55 },
-			{ board_width, 65 * 2 + 80 * 2 + 5, 100, 55 },
-			{ board_width, 65 * 3 + 80 * 3 + 5, 100, 55 },
-			{ board_width, 65 * 4 + 80 * 4 + 5, 100, 60 },
-	};
-
-	std::string table[8][8] = {
-		{ "bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR"},
-		{ "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP"},
-		{ "--", "--", "--", "--", "--", "--", "--", "--"},
-		{ "--", "--", "--", "--", "--", "--", "--", "--"},
-		{ "--", "--", "--", "--", "--", "--", "--", "--"},
-		{ "--", "--", "--", "--", "--", "--", "--", "--"},
-		{ "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP"},
-		{ "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"},
-	};
 
 	#pragma region Destinations
 	SDL_Rect pieces[32];
@@ -1062,27 +1155,69 @@ int SDL_main(int argc, char* argv[])
 	pieces[31] = { 7 * size_field, 6 * size_field, size_piece, size_piece };
 	#pragma endregion
 
+	#pragma region Variables
+	move moves_history[200];
+	SDL_Event ev;
+	std::string table[8][8] = {
+		{ "bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR"},
+		{ "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP"},
+		{ "--", "--", "--", "--", "--", "--", "--", "--"},
+		{ "--", "--", "--", "--", "--", "--", "--", "--"},
+		{ "--", "--", "--", "--", "--", "--", "--", "--"},
+		{ "--", "--", "--", "--", "--", "--", "--", "--"},
+		{ "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP"},
+		{ "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"},
+	};
+
 	int chosen_field[2], become_field[2];
 	int dst_chosen_piece[2], dst_become_piece[2];
 	int num_chosen_piece = 0;
 	int num_last_moved_piece = -1;
 	int moves_num = 0;
 	int mode = 0;
+	int active_board;
+	int active_pieces;
 
 	bool game_over = false;
 	bool isChosen = false;
 	bool isCheck = false;
 	bool turn_move = true;
 	bool available_move = false;
+	bool isRunning = true;
+	bool isCastling = false;
+	bool isEnPassant = false;
+	#pragma endregion
 
-	bool isMusic = false;
-	bool isChunk = false;
-	int board_design = 1;
-	int pieces_design = 1;
+	#pragma region BasicSettins
+	std::ifstream file_settings("settings.txt");
+	std::string line1, line2, line3, line4;
+	getline(file_settings, line1);
+	getline(file_settings, line2);
+	getline(file_settings, line3);
+	getline(file_settings, line4);
+	
+	bool isMusic, isChunk;
 
-	LoadMusic(isMusic);
+	if (line1 == "1") isMusic = true;
+	else isMusic = false;
 
-	#pragma region FirstMoveRecording;
+	LoadMusic(true);
+	if (!isMusic) Mix_PauseMusic();
+
+	if (line2 == "1") isChunk = true;
+	else isChunk = false;
+	
+	active_board = stoi(line3);
+	active_pieces = stoi(line4);
+
+	SDL_Texture* textures[32];
+
+	ChangeTextures(textures, textures1, textures2, textures3, active_pieces);
+	
+	file_settings.close();
+	#pragma endregion
+
+	#pragma region RecordingFirstMove;
 	for (int i = 0; i < 8; i++)
 		for (int j = 0; j < 8; j++)
 			moves_history[moves_num].table[i][j] = table[i][j];
@@ -1096,7 +1231,13 @@ int SDL_main(int argc, char* argv[])
 	}
 
 	for (int i = 0; i < 32; i++)
+	{
 		moves_history[moves_num].textures[i] = textures[i];
+		moves_history[moves_num].textures1[i] = textures1[i];
+		moves_history[moves_num].textures2[i] = textures2[i];
+		moves_history[moves_num].textures3[i] = textures3[i];
+	}
+		
 
 	moves_history[moves_num].game_over = game_over;
 	moves_history[moves_num].num_last_moved_piece = num_last_moved_piece;
@@ -1106,7 +1247,6 @@ int SDL_main(int argc, char* argv[])
 	for (int i = 0; i < 6; i++)
 		moves_history[moves_num].castling[i] = castling[i];
 	#pragma endregion
-
 
 	while (isRunning)
 	{
@@ -1150,7 +1290,7 @@ int SDL_main(int argc, char* argv[])
 						}
 						else if (mode == 1)
 						{
-							#pragma region Mode1(1)
+							#pragma region Game
 							chosen_field[0] = ev.button.y / size_field;
 							chosen_field[1] = ev.button.x / size_field;
 							if ((ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < board_width) && (ev.button.y < board_height))
@@ -1183,9 +1323,9 @@ int SDL_main(int argc, char* argv[])
 								else if ((table[chosen_field[0]][chosen_field[1]] == "--") && !game_over) std::cout << "you clicked on an empty field" << std::endl;
 								else std::cout << "game over" << "\n";
 							}
+							#pragma endregion
 
 							#pragma region MenuBar
-
 							else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_logout.y - 5) && 
 								(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_logout.y + rect_logout.h + 5))
 							{
@@ -1198,8 +1338,10 @@ int SDL_main(int argc, char* argv[])
 								if (moves_num != 0)
 								{
 								moves_num--;
-								ReturnMove(moves_num, &turn_move, table, pieces, &game_over, &num_last_moved_piece, &isCheck, textures, moves_history);
 								std::cout << "you returned the move" << "\n\n";
+								ReturnMove(moves_num, &turn_move, table, pieces, &game_over, &num_last_moved_piece, &isCheck, moves_history);
+								ReturnTextures(moves_num, textures, textures1, textures2, textures3, moves_history);
+								ChangeTextures(textures, textures1, textures2, textures3, active_pieces);
 								}
 								else std::cout << "the game hasn't started yet" << "\n\n";
 							}
@@ -1222,15 +1364,14 @@ int SDL_main(int argc, char* argv[])
 								if (moves_num != 0)
 								{
 									moves_num = 0;
-									ReturnMove(moves_num, &turn_move, table, pieces, &game_over, &num_last_moved_piece, &isCheck, textures, moves_history);
 									std::cout << "you restart the game" << "\n\n";
-									PrintTable(table);
+									ReturnMove(moves_num, &turn_move, table, pieces, &game_over, &num_last_moved_piece, &isCheck, moves_history);
+									ReturnTextures(moves_num, textures, textures1, textures2, textures3, moves_history);
+									ChangeTextures(textures, textures1, textures2, textures3, active_pieces);
 								}
 								else std::cout << "the game hasn't started yet" << "\n\n";
 							}
 							else std::cout << "empty" << std::endl;
-							#pragma endregion
-
 							#pragma endregion
 						}
 						else if (mode == 3)
@@ -1240,6 +1381,60 @@ int SDL_main(int argc, char* argv[])
 							{
 								std::cout << "back" << "\n\n";
 								mode = 0;
+							}
+							else if ((ev.button.x > rects_s[2].x) && (ev.button.y > rects_s[2].y) &&
+								(ev.button.x < rects_s[2].x + rects_s[2].w) && (ev.button.y < rects_s[2].y + rects_s[2].h))
+							{
+								isMusic = !isMusic;
+								if (!isMusic) Mix_PauseMusic();
+								else Mix_ResumeMusic();
+								SaveSettings(isMusic, isChunk, active_board, active_pieces);
+							}
+							else if ((ev.button.x > rects_s[5].x) && (ev.button.y > rects_s[5].y) &&
+								(ev.button.x < rects_s[5].x + rects_s[5].w) && (ev.button.y < rects_s[5].y + rects_s[5].h))
+							{
+								isChunk = !isChunk;
+								SaveSettings(isMusic, isChunk, active_board, active_pieces);
+							}
+							else if ((ev.button.x > rect_board_brown.x) && (ev.button.y > rect_board_brown.y) &&
+								(ev.button.x < rect_board_brown.x + rect_board_brown.w) && (ev.button.y < rect_board_brown.y + rect_board_brown.h))
+							{
+								active_board = 1;
+								SaveSettings(isMusic, isChunk, active_board, active_pieces);
+							}
+							else if ((ev.button.x > rect_board_green.x) && (ev.button.y > rect_board_green.y) &&
+								(ev.button.x < rect_board_green.x + rect_board_green.w) && (ev.button.y < rect_board_green.y + rect_board_green.h))
+							{
+								active_board = 2;
+								SaveSettings(isMusic, isChunk, active_board, active_pieces);
+							}
+							else if ((ev.button.x > rect_board_blue.x) && (ev.button.y > rect_board_blue.y) &&
+								(ev.button.x < rect_board_blue.x + rect_board_blue.w) && (ev.button.y < rect_board_blue.y + rect_board_blue.h))
+							{
+								active_board = 3;
+								SaveSettings(isMusic, isChunk, active_board, active_pieces);
+							}
+							else if ((ev.button.x > rect_pieces1.x) && (ev.button.y > rect_pieces1.y) &&
+								(ev.button.x < rect_pieces1.x + rect_pieces1.w) && (ev.button.y < rect_pieces1.y + rect_pieces1.h))
+							{
+								active_pieces = 1;
+								for (int i = 0; i < 32; i++) textures[i] = textures1[i];
+								SaveSettings(isMusic, isChunk, active_board, active_pieces);
+
+							}
+							else if ((ev.button.x > rect_pieces2.x) && (ev.button.y > rect_pieces2.y) &&
+								(ev.button.x < rect_pieces2.x + rect_pieces2.w) && (ev.button.y < rect_pieces2.y + rect_pieces2.h))
+							{
+								active_pieces = 2;
+								for (int i = 0; i < 32; i++) textures[i] = textures2[i];
+								SaveSettings(isMusic, isChunk, active_board, active_pieces);
+							}
+							else if ((ev.button.x > rect_pieces3.x) && (ev.button.y > rect_pieces3.y) &&
+								(ev.button.x < rect_pieces3.x + rect_pieces3.w) && (ev.button.y < rect_pieces3.y + rect_pieces3.h))
+							{
+								active_pieces = 3;
+								for (int i = 0; i < 32; i++) textures[i] = textures3[i];
+								SaveSettings(isMusic, isChunk, active_board, active_pieces);
 							}
 						}
 					}
@@ -1259,7 +1454,6 @@ int SDL_main(int argc, char* argv[])
 					{
 						if (mode == 1)
 						{
-							#pragma region Mode1(2)
 							isCastling = false;
 							isEnPassant = false;
 							become_field[0] = ev.button.y / size_field;
@@ -1313,7 +1507,10 @@ int SDL_main(int argc, char* argv[])
 									{
 										if (become_field[0] == 7)
 										{
-											textures[num_last_moved_piece] = tex_bq;
+											textures[num_last_moved_piece] = textures[3];
+											textures1[num_last_moved_piece] = textures1[3];
+											textures2[num_last_moved_piece] = textures2[3];
+											textures3[num_last_moved_piece] = textures3[3];
 											table[become_field[0]][become_field[1]] = "bQ";
 										}
 									}		
@@ -1321,7 +1518,10 @@ int SDL_main(int argc, char* argv[])
 									{
 										if (become_field[0] == 0)
 										{
-											textures[num_last_moved_piece] = tex_wq;
+											textures[num_last_moved_piece] = textures[19];
+											textures1[num_last_moved_piece] = textures1[19];
+											textures2[num_last_moved_piece] = textures2[19];
+											textures3[num_last_moved_piece] = textures3[19];
 											table[become_field[0]][become_field[1]] = "wQ";
 										}
 									}					
@@ -1329,7 +1529,7 @@ int SDL_main(int argc, char* argv[])
 									PrintTable(table);
 
 									if (!((pieces[4].x == 4 * size_field) && (pieces[4].y == 0)))
-										castling[0] = false;
+										castling[0] = false;;
 									if (!((pieces[0].x == 0) && (pieces[0].y == 0)))
 										castling[1] = false;
 									if (!((pieces[7].x == 7 * size_field) && (pieces[7].y == 0)))
@@ -1384,7 +1584,13 @@ int SDL_main(int argc, char* argv[])
 									}
 
 									for (int i = 0; i < 32; i++)
+									{
 										moves_history[moves_num].textures[i] = textures[i];
+										moves_history[moves_num].textures1[i] = textures1[i];
+										moves_history[moves_num].textures2[i] = textures2[i];
+										moves_history[moves_num].textures3[i] = textures3[i];
+									}
+										
 
 									moves_history[moves_num].game_over = game_over;
 									moves_history[moves_num].num_last_moved_piece = num_last_moved_piece;
@@ -1393,7 +1599,6 @@ int SDL_main(int argc, char* argv[])
 
 									for (int i = 0; i < 6; i++)
 										moves_history[moves_num].castling[i] = castling[i];
-									#pragma endregion
 								}
 								else
 								{
@@ -1418,6 +1623,7 @@ int SDL_main(int argc, char* argv[])
 							}
 							isChosen = false;
 							#pragma endregion
+
 						}	
 					}
 					break;
@@ -1444,7 +1650,19 @@ int SDL_main(int argc, char* argv[])
 		
 		else if (mode == 1)
 		{
-			SDL_RenderCopy(ren, tex_board, NULL, &rect_board);
+			switch (active_board)
+			{
+			case 1:
+				SDL_RenderCopy(ren, tex_board_brown, NULL, &rect_board);
+				break;
+			case 2:
+				SDL_RenderCopy(ren, tex_board_green, NULL, &rect_board);
+				break;
+			case 3:
+				SDL_RenderCopy(ren, tex_board_blue, NULL, &rect_board);
+				break;
+			}
+
 			SDL_RenderCopy(ren, tex_menu_bar, NULL, &rect_menu_bar);
 			SDL_RenderCopy(ren, tex_logout, NULL, &rect_logout);
 
@@ -1462,7 +1680,6 @@ int SDL_main(int argc, char* argv[])
 			if ((moves_num == 0) || game_over) SDL_RenderCopy(ren, tex_flag_gray, NULL, &rect_flag);
 			else SDL_RenderCopy(ren, tex_flag, NULL, &rect_flag);
 
-			SDL_RenderFillRects(ren, rects_menu_bar, 5);
 			for (int i = 0; i < 32; i++) SDL_RenderCopy(ren, textures[i], NULL, &pieces[i]);
 			if (isChosen) RenAvailMove(turn_move, ren, tex_dot, tex_frame, tex_star, pieces, table, chosen_field, num_last_moved_piece);
 			if (isCheck) RenCheck(turn_move, table, tex_check);
@@ -1473,11 +1690,60 @@ int SDL_main(int argc, char* argv[])
 		{
 			SDL_SetRenderDrawColor(ren, 105, 63, 181, 128);
 			SDL_RenderDrawRects(ren, rects_s, 6);
-			SDL_SetRenderDrawColor(ren, 0, 0, 0, 0);
+
+			switch (active_board)
+			{
+				case 1: 
+					SDL_RenderDrawRects(ren, rects_board_brown, 5);
+					break;
+				case 2:
+					SDL_RenderDrawRects(ren, rects_board_green, 5);
+					break;
+				case 3:
+					SDL_RenderDrawRects(ren, rects_board_blue, 5);
+					break;
+			}
+
+			switch (active_pieces)
+			{
+			case 1:
+				SDL_RenderDrawRects(ren, rects_pieces1, 5);
+				break;
+			case 2:
+				SDL_RenderDrawRects(ren, rects_pieces2, 5);
+				break;
+			case 3:
+				SDL_RenderDrawRects(ren, rects_pieces3, 5);
+				break;
+			}
+
+			if (isMusic) SDL_RenderCopy(ren, tex_tick, NULL, &rects_s[2]);
+			else SDL_RenderCopy(ren, tex_cross, NULL, &rects_s[2]);
+			if (isChunk) SDL_RenderCopy(ren, tex_tick, NULL, &rects_s[5]);
+			else SDL_RenderCopy(ren, tex_cross, NULL, &rects_s[5]);
 
 			SDL_RenderCopy(ren, tex_back, NULL, &rect_back);
 			SDL_RenderCopy(ren, tex_music, NULL, &rect_music);
 			SDL_RenderCopy(ren, tex_sound_effects, NULL, &rect_sound_effects);
+
+			SDL_RenderCopy(ren, tex_board_design, NULL, &rect_board_design);
+			SDL_RenderCopy(ren, tex_pieces_design, NULL, &rect_pieces_design);
+
+			SDL_RenderCopy(ren, tex_board_brown, NULL, &rect_board_brown);
+			SDL_RenderCopy(ren, tex_board_green, NULL, &rect_board_green);
+			SDL_RenderCopy(ren, tex_board_blue, NULL, &rect_board_blue);
+
+			SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+
+			SDL_RenderFillRect(ren, &rect_pieces1);
+			SDL_RenderFillRect(ren, &rect_pieces2);
+			SDL_RenderFillRect(ren, &rect_pieces3);
+
+			SDL_RenderCopy(ren, tex_wq1, NULL, &rect_pieces1);
+			SDL_RenderCopy(ren, tex_wq2, NULL, &rect_pieces2);
+			SDL_RenderCopy(ren, tex_wq3, NULL, &rect_pieces3);
+
+			SDL_SetRenderDrawColor(ren, 0, 0, 0, 0);
 		}
 
 		SDL_RenderPresent(ren);
@@ -1504,20 +1770,50 @@ int SDL_main(int argc, char* argv[])
 	SDL_DestroyTexture(tex_quit);
 	SDL_DestroyTexture(tex_back);
 	SDL_DestroyTexture(tex_music);
+	SDL_DestroyTexture(tex_board_design);
+	SDL_DestroyTexture(tex_pieces_design);
 	SDL_DestroyTexture(tex_sound_effects);
-	SDL_DestroyTexture(tex_bb);
-	SDL_DestroyTexture(tex_bk);
-	SDL_DestroyTexture(tex_bn);
-	SDL_DestroyTexture(tex_bp);
-	SDL_DestroyTexture(tex_bq);
-	SDL_DestroyTexture(tex_br);
-	SDL_DestroyTexture(tex_wb);
-	SDL_DestroyTexture(tex_wk);
-	SDL_DestroyTexture(tex_wn);
-	SDL_DestroyTexture(tex_wp);
-	SDL_DestroyTexture(tex_wq);
-	SDL_DestroyTexture(tex_wr);
-	SDL_DestroyTexture(tex_board);
+	SDL_DestroyTexture(tex_tick);
+	SDL_DestroyTexture(tex_cross);
+	SDL_DestroyTexture(tex_bb1);
+	SDL_DestroyTexture(tex_bk1);
+	SDL_DestroyTexture(tex_bn1);
+	SDL_DestroyTexture(tex_bp1);
+	SDL_DestroyTexture(tex_bq1);
+	SDL_DestroyTexture(tex_br1);
+	SDL_DestroyTexture(tex_wb1);
+	SDL_DestroyTexture(tex_wk1);
+	SDL_DestroyTexture(tex_wn1);
+	SDL_DestroyTexture(tex_wp1);
+	SDL_DestroyTexture(tex_wq1);
+	SDL_DestroyTexture(tex_wr1);
+	SDL_DestroyTexture(tex_bb2);
+	SDL_DestroyTexture(tex_bk2);
+	SDL_DestroyTexture(tex_bn2);
+	SDL_DestroyTexture(tex_bp2);
+	SDL_DestroyTexture(tex_bq2);
+	SDL_DestroyTexture(tex_br2);
+	SDL_DestroyTexture(tex_wb2);
+	SDL_DestroyTexture(tex_wk2);
+	SDL_DestroyTexture(tex_wn2);
+	SDL_DestroyTexture(tex_wp2);
+	SDL_DestroyTexture(tex_wq2);
+	SDL_DestroyTexture(tex_wr2);
+	SDL_DestroyTexture(tex_bb3);
+	SDL_DestroyTexture(tex_bk3);
+	SDL_DestroyTexture(tex_bn3);
+	SDL_DestroyTexture(tex_bp3);
+	SDL_DestroyTexture(tex_bq3);
+	SDL_DestroyTexture(tex_br3);
+	SDL_DestroyTexture(tex_wb3);
+	SDL_DestroyTexture(tex_wk3);
+	SDL_DestroyTexture(tex_wn3);
+	SDL_DestroyTexture(tex_wp3);
+	SDL_DestroyTexture(tex_wq3);
+	SDL_DestroyTexture(tex_wr3);
+	SDL_DestroyTexture(tex_board_brown);
+	SDL_DestroyTexture(tex_board_green);
+	SDL_DestroyTexture(tex_board_blue);
 	Mix_FreeMusic(background);
 	Mix_FreeChunk(sound);
 	TTF_CloseFont(font);
