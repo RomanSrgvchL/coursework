@@ -444,9 +444,9 @@ bool Check2(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 }
 
 
-void CheckCastling1(bool turn_move, int* become_field, std::string table[8][8], SDL_Rect* pieces, int* chosen_field, bool* available_move, bool* isCastling)
+void CheckCastling1(bool turn_move, int* become_field, std::string table[8][8], SDL_Rect* pieces, int* chosen_field, bool* available_move, bool* isCastling, bool* castling)
 {
-	if ((become_field[0] == 0) && (become_field[1] == 2) && castling1[0] && castling1[1] && (table[0][1] + table[0][2] +
+	if ((become_field[0] == 0) && (become_field[1] == 2) && castling[0] && castling[1] && (table[0][1] + table[0][2] +
 		table[0][3] == "------") && !Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
 	{
 		become_field[1] = 3;
@@ -456,14 +456,14 @@ void CheckCastling1(bool turn_move, int* become_field, std::string table[8][8], 
 			table[0][0] = "--";
 			pieces[0].x = 3 * size_field;
 			pieces[0].y = 0;
-			castling1[0] = false;
-			castling1[1] = false;
+			castling[0] = false;
+			castling[1] = false;
 			*available_move = true;
 			become_field[1] = 2;
 			*isCastling = true;
 		}
 	}
-	else if ((become_field[0] == 0) && (become_field[1] == 6) && castling1[0] && castling1[2] && (table[0][5] + table[0][6] == "----") &&
+	else if ((become_field[0] == 0) && (become_field[1] == 6) && castling[0] && castling[2] && (table[0][5] + table[0][6] == "----") &&
 		!Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
 	{
 		become_field[1] = 5;
@@ -473,14 +473,14 @@ void CheckCastling1(bool turn_move, int* become_field, std::string table[8][8], 
 			table[0][7] = "--";
 			pieces[7].x = 5 * size_field;
 			pieces[7].y = 0;
-			castling1[0] = false;
-			castling1[2] = false;
+			castling[0] = false;
+			castling[2] = false;
 			*available_move = true;
 			become_field[1] = 6;
 			*isCastling = true;
 		}
 	}
-	else if ((become_field[0] == 7) && (become_field[1] == 2) && castling1[3] && castling1[4] && (table[7][1] + table[7][2] +
+	else if ((become_field[0] == 7) && (become_field[1] == 2) && castling[3] && castling[4] && (table[7][1] + table[7][2] +
 		table[7][3] == "------") && !Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
 	{
 		become_field[1] = 3;
@@ -490,14 +490,14 @@ void CheckCastling1(bool turn_move, int* become_field, std::string table[8][8], 
 			table[7][0] = "--";
 			pieces[16].x = 3 * size_field;
 			pieces[16].y = 7 * size_field;
-			castling1[3] = false;
-			castling1[4] = false;
+			castling[3] = false;
+			castling[4] = false;
 			*available_move = true;
 			become_field[1] = 2;
 			*isCastling = true;
 		}
 	}
-	else if ((become_field[0] == 7) && (become_field[1] == 6) && castling1[3] && castling1[5] && (table[7][5] + table[7][6] == "----") &&
+	else if ((become_field[0] == 7) && (become_field[1] == 6) && castling[3] && castling[5] && (table[7][5] + table[7][6] == "----") &&
 		!Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
 	{
 		become_field[1] = 5;
@@ -507,8 +507,8 @@ void CheckCastling1(bool turn_move, int* become_field, std::string table[8][8], 
 			table[7][7] = "--";
 			pieces[23].x = 5 * size_field;
 			pieces[23].y = 7 * size_field;
-			castling1[3] = false;
-			castling1[5] = false;
+			castling[3] = false;
+			castling[5] = false;
 			*available_move = true;
 			become_field[1] = 6;
 			*isCastling = true;
@@ -520,10 +520,10 @@ void CheckCastling1(bool turn_move, int* become_field, std::string table[8][8], 
 }
 
 
-bool CheckCastling2(bool turn_move, int* become_field, std::string table[8][8], SDL_Rect* pieces, int* chosen_field)
+bool CheckCastling2(bool turn_move, int* become_field, std::string table[8][8], SDL_Rect* pieces, int* chosen_field, bool* castling)
 {
 	bool CheckCastling = false;
-	if ((become_field[0] == 0) && (become_field[1] == 2) && castling1[0] && castling1[1] && (table[0][1] + table[0][2] +
+	if ((become_field[0] == 0) && (become_field[1] == 2) && castling[0] && castling[1] && (table[0][1] + table[0][2] +
 		table[0][3] == "------") && !Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
 	{
 		become_field[1] = 3;
@@ -532,7 +532,7 @@ bool CheckCastling2(bool turn_move, int* become_field, std::string table[8][8], 
 			CheckCastling = true;
 		}
 	}
-	else if ((become_field[0] == 0) && (become_field[1] == 6) && castling1[0] && castling1[2] && (table[0][5] + table[0][6] == "----") &&
+	else if ((become_field[0] == 0) && (become_field[1] == 6) && castling[0] && castling[2] && (table[0][5] + table[0][6] == "----") &&
 		!Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
 	{
 		become_field[1] = 5;
@@ -541,7 +541,7 @@ bool CheckCastling2(bool turn_move, int* become_field, std::string table[8][8], 
 			CheckCastling = true;
 		}
 	}
-	else if ((become_field[0] == 7) && (become_field[1] == 2) && castling1[3] && castling1[4] && (table[7][1] + table[7][2] +
+	else if ((become_field[0] == 7) && (become_field[1] == 2) && castling[3] && castling[4] && (table[7][1] + table[7][2] +
 		table[7][3] == "------") && !Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
 	{
 		become_field[1] = 3;
@@ -550,7 +550,7 @@ bool CheckCastling2(bool turn_move, int* become_field, std::string table[8][8], 
 			CheckCastling = true;
 		}
 	}
-	else if ((become_field[0] == 7) && (become_field[1] == 6) && castling1[3] && castling1[5] && (table[7][5] + table[7][6] == "----") &&
+	else if ((become_field[0] == 7) && (become_field[1] == 6) && castling[3] && castling[5] && (table[7][5] + table[7][6] == "----") &&
 		!Check2(turn_move, table, pieces) && !BitField(turn_move, chosen_field, become_field, table, pieces))
 	{
 		become_field[1] = 5;
@@ -816,7 +816,7 @@ bool Draw(bool turn_move, std::string table[8][8], SDL_Rect* pieces)
 }
 
 
-void RenAvailMove(bool turn_move, SDL_Renderer* ren, SDL_Texture* tex_dot, SDL_Texture* tex_frame, SDL_Texture* tex_star, SDL_Rect* pieces, std::string table[8][8], int* chosen_field, int num)
+void RenAvailMove(bool turn_move, SDL_Renderer* ren, SDL_Texture* tex_dot, SDL_Texture* tex_frame, SDL_Texture* tex_star, SDL_Rect* pieces, std::string table[8][8], int* chosen_field, int num, bool* castling)
 {
 	int dst_become_piece[2];
 	int become_field[2];
@@ -836,7 +836,7 @@ void RenAvailMove(bool turn_move, SDL_Renderer* ren, SDL_Texture* tex_dot, SDL_T
 			{
 				if (table[chosen_field[0]][chosen_field[1]][1] == 'K')
 				{
-					if (CheckCastling2(turn_move, become_field, table, pieces, chosen_field))
+					if (CheckCastling2(turn_move, become_field, table, pieces, chosen_field, castling))
 					{
 						if (table[become_field[0]][become_field[1]] == "--") SDL_RenderCopy(ren, tex_dot, NULL, &dot);
 						else SDL_RenderCopy(ren, tex_frame, NULL, &frame);
@@ -913,7 +913,7 @@ void ReturnTextures(int moves_num, SDL_Texture* textures[32], SDL_Texture* textu
 }
 
 
-void ReturnMove(int moves_num, bool* turn_move, std::string table[8][8], SDL_Rect* pieces, bool* game_over, int* num, bool* isCheck, move* moves_history, int mode)
+void ReturnMove(int moves_num, bool* turn_move, std::string table[8][8], SDL_Rect* pieces, bool* game_over, int* num, bool* isCheck, move* moves_history, bool* castling)
 {
 	for (int i = 0; i < 8; i++)
 		for (int j = 0; j < 8; j++)
@@ -933,8 +933,8 @@ void ReturnMove(int moves_num, bool* turn_move, std::string table[8][8], SDL_Rec
 	*isCheck = moves_history[moves_num].isCheck;
 
 	for (int i = 0; i < 6; i++)
-		if (mode == 1) castling1[i] = moves_history[moves_num].castling[i];
-		else if (mode == 2) castling2[i] = moves_history[moves_num].castling[i];
+		castling[i] = moves_history[moves_num].castling[i];
+
 	PrintTable(table);
 }
 
@@ -1062,7 +1062,7 @@ void ComputerMove(int* chosen_field2, int* become_field2, int* dst_chosen_piece2
 			(table2[chosen_field2[0]][chosen_field2[1]][0] != table2[become_field2[0]][become_field2[1]][0]))
 		{
 			if (table2[chosen_field2[0]][chosen_field2[1]][1] == 'K')
-				CheckCastling1(*turn_move2, become_field2, table2, pieces2, chosen_field2, available_move2, isCastling2);
+				CheckCastling1(*turn_move2, become_field2, table2, pieces2, chosen_field2, available_move2, isCastling2, castling2);
 			else if ((table2[chosen_field2[0]][chosen_field2[1]][1] == 'P') && (table2[become_field2[0]][become_field2[1]] == "--"))
 				CheckEnPassant1(*turn_move2, table2, pieces2, chosen_field2, become_field2, available_move2, isEnPassant2, dst_become_piece2, *num_last_moved_piece2);
 			else
@@ -1561,7 +1561,7 @@ int SDL_main(int argc, char* argv[])
 								{
 									moves_num1--;
 									std::cout << "you returned the move" << "\n\n";
-									ReturnMove(moves_num1, &turn_move1, table1, pieces1, &game_over1, &num_last_moved_piece1, &isCheck1, moves_history1, mode);
+									ReturnMove(moves_num1, &turn_move1, table1, pieces1, &game_over1, &num_last_moved_piece1, &isCheck1, moves_history1, castling1);
 									ReturnTextures(moves_num1, textures1, textures1_1, textures2_1, textures3_1, moves_history1);
 									ChangeTextures(textures1, textures1_1, textures2_1, textures3_1, active_pieces);
 								}
@@ -1588,7 +1588,7 @@ int SDL_main(int argc, char* argv[])
 								{
 									moves_num1 = 0;
 									std::cout << "you restarted the game" << "\n\n";
-									ReturnMove(moves_num1, &turn_move1, table1, pieces1, &game_over1, &num_last_moved_piece1, &isCheck1, moves_history1, mode);
+									ReturnMove(moves_num1, &turn_move1, table1, pieces1, &game_over1, &num_last_moved_piece1, &isCheck1, moves_history1, castling1);
 									ReturnTextures(moves_num1, textures1, textures1_1, textures2_1, textures3_1, moves_history1);
 									ChangeTextures(textures1, textures1_1, textures2_1, textures3_1, active_pieces);
 								}
@@ -1649,7 +1649,7 @@ int SDL_main(int argc, char* argv[])
 										if (!game_over2 || (turn_move2 && game_over2)) moves_num2 -= 2;
 										else moves_num2--;
 										std::cout << "you returned the move" << "\n\n";
-										ReturnMove(moves_num2, &turn_move2, table2, pieces2, &game_over2, &num_last_moved_piece2, &isCheck2, moves_history2, mode);
+										ReturnMove(moves_num2, &turn_move2, table2, pieces2, &game_over2, &num_last_moved_piece2, &isCheck2, moves_history2, castling2);
 										ReturnTextures(moves_num2, textures2, textures1_2, textures2_2, textures3_2, moves_history2);
 										ChangeTextures(textures2, textures1_2, textures2_2, textures3_2, active_pieces);
 									}
@@ -1675,7 +1675,7 @@ int SDL_main(int argc, char* argv[])
 									{
 										moves_num2 = 0;
 										std::cout << "you restarted the game" << "\n\n";
-										ReturnMove(moves_num2, &turn_move2, table2, pieces2, &game_over2, &num_last_moved_piece2, &isCheck2, moves_history2, mode);
+										ReturnMove(moves_num2, &turn_move2, table2, pieces2, &game_over2, &num_last_moved_piece2, &isCheck2, moves_history2, castling2);
 										ReturnTextures(moves_num2, textures2, textures1_2, textures2_2, textures3_2, moves_history2);
 										ChangeTextures(textures2, textures1_2, textures2_2, textures3_2, active_pieces);;
 									}
@@ -1798,7 +1798,7 @@ int SDL_main(int argc, char* argv[])
 								(table1[chosen_field1[0]][chosen_field1[1]][0] != table1[become_field1[0]][become_field1[1]][0]))
 							{
 								if (table1[chosen_field1[0]][chosen_field1[1]][1] == 'K')
-									CheckCastling1(turn_move1, become_field1, table1, pieces1, chosen_field1, &available_move1, &isCastling1);
+									CheckCastling1(turn_move1, become_field1, table1, pieces1, chosen_field1, &available_move1, &isCastling1, castling1);
 								else if ((table1[chosen_field1[0]][chosen_field1[1]][1] == 'P') && (table1[become_field1[0]][become_field1[1]] == "--"))
 									CheckEnPassant1(turn_move1, table1, pieces1, chosen_field1, become_field1, &available_move1, &isEnPassant1, dst_become_piece1, num_last_moved_piece1);
 								else
@@ -1948,7 +1948,7 @@ int SDL_main(int argc, char* argv[])
 									(table2[chosen_field2[0]][chosen_field2[1]][0] != table2[become_field2[0]][become_field2[1]][0]))
 								{
 									if (table2[chosen_field2[0]][chosen_field2[1]][1] == 'K')
-										CheckCastling1(turn_move2, become_field2, table2, pieces2, chosen_field2, &available_move2, &isCastling2);
+										CheckCastling1(turn_move2, become_field2, table2, pieces2, chosen_field2, &available_move2, &isCastling2, castling2);
 									else if ((table2[chosen_field2[0]][chosen_field2[1]][1] == 'P') && (table2[become_field2[0]][become_field2[1]] == "--"))
 										CheckEnPassant1(turn_move2, table2, pieces2, chosen_field2, become_field2, &available_move2, &isEnPassant2, dst_become_piece2, num_last_moved_piece2);
 									else
@@ -2147,7 +2147,7 @@ int SDL_main(int argc, char* argv[])
 			else SDL_RenderCopy(ren, tex_flag, NULL, &rect_flag);
 
 			for (int i = 0; i < 32; i++) SDL_RenderCopy(ren, textures1[i], NULL, &pieces1[i]);
-			if (isChosen1) RenAvailMove(turn_move1, ren, tex_dot, tex_frame, tex_star, pieces1, table1, chosen_field1, num_last_moved_piece1);
+			if (isChosen1) RenAvailMove(turn_move1, ren, tex_dot, tex_frame, tex_star, pieces1, table1, chosen_field1, num_last_moved_piece1, castling1);
 			if (isCheck1) RenCheck(turn_move1, table1, tex_check);
 			for (int i = 0; i < 32; i++) if (i == num_chosen_piece1) SDL_RenderCopy(ren, textures1[i], NULL, &pieces1[i]);
 		}
@@ -2184,7 +2184,7 @@ int SDL_main(int argc, char* argv[])
 			else SDL_RenderCopy(ren, tex_flag, NULL, &rect_flag);
 
 			for (int i = 0; i < 32; i++) SDL_RenderCopy(ren, textures2[i], NULL, &pieces2[i]);
-			if (isChosen2) RenAvailMove(turn_move2, ren, tex_dot, tex_frame, tex_star, pieces2, table2, chosen_field2, num_last_moved_piece2);
+			if (isChosen2) RenAvailMove(turn_move2, ren, tex_dot, tex_frame, tex_star, pieces2, table2, chosen_field2, num_last_moved_piece2, castling2);
 			if (isCheck2) RenCheck(turn_move2, table2, tex_check);
 			for (int i = 0; i < 32; i++) if (i == num_chosen_piece2) SDL_RenderCopy(ren, textures2[i], NULL, &pieces2[i]);
 		}
