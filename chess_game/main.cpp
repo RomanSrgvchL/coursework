@@ -971,9 +971,9 @@ void SaveTextures(int moves_num, SDL_Texture* textures[32], SDL_Texture* texture
 	for (int i = 0; i < 32; i++)
 	{
 		moves_history[moves_num].textures[i] = textures[i];
-		moves_history[moves_num].textures1[i] = textures[i];
-		moves_history[moves_num].textures2[i] = textures[i];
-		moves_history[moves_num].textures3[i] = textures[i];
+		moves_history[moves_num].textures1[i] = textures1[i];
+		moves_history[moves_num].textures2[i] = textures2[i];
+		moves_history[moves_num].textures3[i] = textures3[i];
 	}
 }
 
@@ -1008,7 +1008,7 @@ void ComputerMove(int* chosen_field2, int* become_field2, int* dst_chosen_piece2
 {
 	srand(time(NULL));
 
-	std::this_thread::sleep_for(std::chrono::seconds(1));
+	std::this_thread::sleep_for(std::chrono::seconds(0));
 
 	bool black_pieces[16] = {};
 	bool fields[8][8] = {};
@@ -1163,9 +1163,12 @@ void ComputerMove(int* chosen_field2, int* become_field2, int* dst_chosen_piece2
 		*game_over2 = true;
 	}
 
-	(*moves_num2)++;
-	MoveRecording(*moves_num2, moves_history2, table2, pieces2, *game_over2, *num_last_moved_piece2, *turn_move2, *isCheck2, castling2);
-	SaveTextures(*moves_num2, textures2, textures1_2, textures2_2, textures3_2, moves_history2);
+	if (*moves_num2 < 90)
+	{
+		(*moves_num2)++;
+		MoveRecording(*moves_num2, moves_history2, table2, pieces2, *game_over2, *num_last_moved_piece2, *turn_move2, *isCheck2, castling2);
+		SaveTextures(*moves_num2, textures2, textures1_2, textures2_2, textures3_2, moves_history2);
+	}
 
 	*isChosen2 = false;
 }
@@ -1553,15 +1556,16 @@ int SDL_main(int argc, char* argv[])
 							else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_return.y - 5) && 
 								(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_return.y + rect_return.h + 5))
 							{
-								if (moves_num1 != 0)
+								if ((moves_num1 != 0) && (moves_num1 < 90))
 								{
-								moves_num1--;
-								std::cout << "you returned the move" << "\n\n";
-								ReturnMove(moves_num1, &turn_move1, table1, pieces1, &game_over1, &num_last_moved_piece1, &isCheck1, moves_history1);
-								ReturnTextures(moves_num1, textures1, textures1_1, textures2_1, textures3_1, moves_history1);
-								ChangeTextures(textures1, textures1_1, textures2_1, textures3_1, active_pieces);
+									moves_num1--;
+									std::cout << "you returned the move" << "\n\n";
+									ReturnMove(moves_num1, &turn_move1, table1, pieces1, &game_over1, &num_last_moved_piece1, &isCheck1, moves_history1);
+									ReturnTextures(moves_num1, textures1, textures1_1, textures2_1, textures3_1, moves_history1);
+									ChangeTextures(textures1, textures1_1, textures2_1, textures3_1, active_pieces);
 								}
-								else std::cout << "the game hasn't started yet" << "\n\n";
+								else if (moves_num1 == 0) std::cout << "the game hasn't started yet" << "\n\n";
+								else std::cout << "you have exceeded the limit of moves" << "\n\n";
 							}
 							else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_flag.y - 5) && 
 								(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_flag.y + rect_flag.h + 5))
@@ -1639,7 +1643,7 @@ int SDL_main(int argc, char* argv[])
 								else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_return.y - 5) &&
 									(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_return.y + rect_return.h + 5))
 								{
-									if (moves_num2 > 1)
+									if ((moves_num2 > 1) && (moves_num2 < 90))
 									{
 										if (!game_over2 || (turn_move2 && game_over2)) moves_num2 -= 2;
 										else moves_num2--;
@@ -1648,7 +1652,8 @@ int SDL_main(int argc, char* argv[])
 										ReturnTextures(moves_num2, textures2, textures1_2, textures2_2, textures3_2, moves_history2);
 										ChangeTextures(textures2, textures1_2, textures2_2, textures3_2, active_pieces);
 									}
-									else std::cout << "the game hasn't started yet" << "\n\n";
+									else if (moves_num2 < 90) std::cout << "the game hasn't started yet" << "\n\n";
+									else std::cout << "you have exceeded the limit of moves" << "\n\n";
 								}
 								else if ((ev.button.x > board_width + 5) && (ev.button.y > rect_flag.y - 5) &&
 									(ev.button.x < board_width + menu_bar - 5) && (ev.button.y < rect_flag.y + rect_flag.h + 5))
@@ -1895,10 +1900,12 @@ int SDL_main(int argc, char* argv[])
 										game_over1 = true;
 									}
 
-									moves_num1++;
-									MoveRecording(moves_num1, moves_history1, table1, pieces1, game_over1, num_last_moved_piece1, turn_move1, isCheck1, castling1);
-									SaveTextures(moves_num1, textures1, textures1_1, textures2_1, textures3_1, moves_history1);
-
+									if (moves_num1 < 90)
+									{
+										moves_num1++;
+										MoveRecording(moves_num1, moves_history1, table1, pieces1, game_over1, num_last_moved_piece1, turn_move1, isCheck1, castling1);
+										SaveTextures(moves_num1, textures1, textures1_1, textures2_1, textures3_1, moves_history1);
+									}					
 								}
 								else
 								{
@@ -2043,156 +2050,16 @@ int SDL_main(int argc, char* argv[])
 											game_over2 = true;
 										}
 
-										moves_num2++;
-										MoveRecording(moves_num2, moves_history2, table2, pieces2, game_over2, num_last_moved_piece2, turn_move2, isCheck2, castling2);
-										SaveTextures(moves_num2, textures2, textures1_2, textures2_2, textures3_2, moves_history2);
+										if (moves_num2 < 90)
+										{
+											moves_num2++;
+											MoveRecording(moves_num2, moves_history2, table2, pieces2, game_over2, num_last_moved_piece2, turn_move2, isCheck2, castling2);
+											SaveTextures(moves_num2, textures2, textures1_2, textures2_2, textures3_2, moves_history2);
+										}								
 								#pragma endregion	
 
 										if (!game_over2)		
 										{
-											#pragma region AIs_Move
-											/*do {
-												chosen_field2[0] = rand() % 8;
-												chosen_field2[1] = rand() % 8;
-											} while ((table2[chosen_field2[0]][chosen_field2[1]][0] == 'w') || (table2[chosen_field2[0]][chosen_field2[1]] == "--"));
-
-											dst_chosen_piece2[0] = chosen_field2[1] * size_field;
-											dst_chosen_piece2[1] = chosen_field2[0] * size_field;
-
-											for (int i = 0; i < 32; i++)
-											{
-												if ((pieces2[i].x == dst_chosen_piece2[0]) && (pieces2[i].y == dst_chosen_piece2[1]))
-												{
-													num_chosen_piece2 = i;
-													break;
-												}
-											}
-
-											isCastling2 = false;
-											isEnPassant2 = false;
-
-											bool correct = false;
-
-											while (!correct)
-											{
-												become_field2[0] = rand() % 8;
-												become_field2[1] = rand() % 8;
-
-												dst_become_piece2[0] = become_field2[1] * size_field;
-												dst_become_piece2[1] = become_field2[0] * size_field;
-
-												if (!((become_field2[0] == chosen_field2[0]) && (become_field2[1] == chosen_field2[1])) &&
-													(table2[chosen_field2[0]][chosen_field2[1]][0] != table2[become_field2[0]][become_field2[1]][0]))
-												{
-													if (table2[chosen_field2[0]][chosen_field2[1]][1] == 'K')
-														CheckCastling1(turn_move2, become_field2, table2, pieces2, chosen_field2, &available_move2, &isCastling2);
-													else if ((table2[chosen_field2[0]][chosen_field2[1]][1] == 'P') && (table2[become_field2[0]][become_field2[1]] == "--"))
-														CheckEnPassant1(turn_move2, table2, pieces2, chosen_field2, become_field2, &available_move2, &isEnPassant2, dst_become_piece2, num_last_moved_piece2);
-													else
-														available_move2 = AvailableMove(chosen_field2, become_field2, table2) &&
-														!Check1(turn_move2, chosen_field2, become_field2, table2, pieces2);
-												}
-												if (available_move2) correct = true;
-											}
-
-											if ((table2[become_field2[0]][become_field2[1]] == "--") && !isEnPassant2) Sound0("music/move.wav", isChunk);
-											else Sound0("music/take.wav", isChunk);
-
-											if (table2[become_field2[0]][become_field2[1]] != "--")
-											{
-												for (int i = 0; i < 32; i++)
-												{
-													if ((pieces2[i].x == dst_become_piece2[0]) && (pieces2[i].y == dst_become_piece2[1]))
-													{
-														pieces2[i].x = -100;
-														pieces2[i].y = -100;
-														break;
-													}
-												}
-											}
-
-											pieces2[num_chosen_piece2].x = dst_become_piece2[0];
-											pieces2[num_chosen_piece2].y = dst_become_piece2[1];
-											table2[become_field2[0]][become_field2[1]] = table2[chosen_field2[0]][chosen_field2[1]];
-											table2[chosen_field2[0]][chosen_field2[1]] = "--";
-											turn_move2 = !turn_move2;
-											available_move2 = false;
-											isCheck2 = false;
-											num_last_moved_piece2 = num_chosen_piece2;
-
-											if (turn_move2 && (num_last_moved_piece2 >= 8) && (num_last_moved_piece2 <= 16))
-											{
-												if (become_field2[0] == 7)
-												{
-													textures2[num_last_moved_piece2] = textures2[3];
-													textures1_2[num_last_moved_piece2] = textures1_2[3];
-													textures2_2[num_last_moved_piece2] = textures2_2[3];
-													textures3_2[num_last_moved_piece2] = textures3_2[3];
-													table2[become_field2[0]][become_field2[1]] = "bQ";
-												}
-											}
-											else if (!turn_move2 && (num_last_moved_piece2 >= 24) && (num_last_moved_piece2 <= 32))
-											{
-												if (become_field2[0] == 0)
-												{
-													textures2[num_last_moved_piece2] = textures2[19];
-													textures1_2[num_last_moved_piece2] = textures1_2[19];
-													textures2_2[num_last_moved_piece2] = textures2_2[19];
-													textures3_2[num_last_moved_piece2] = textures3_2[19];
-													table2[become_field2[0]][become_field2[1]] = "wQ";
-												}
-											}
-
-											std::cout << "AI has made its move" << "\n\n";
-											PrintTable(table2);
-
-											if (!((pieces2[4].x == 4 * size_field) && (pieces2[4].y == 0)))
-												castling2[0] = false;;
-											if (!((pieces2[0].x == 0) && (pieces2[0].y == 0)))
-												castling2[1] = false;
-											if (!((pieces2[7].x == 7 * size_field) && (pieces2[7].y == 0)))
-												castling2[2] = false;
-											if (!((pieces2[20].x == 4 * size_field) && (pieces2[20].y == 7 * size_field)))
-												castling2[3] = false;
-											if (!((pieces2[16].x == 0) && (pieces2[16].y == 7 * size_field)))
-												castling2[4] = false;
-											if (!((pieces2[23].x == 7 * size_field) && (pieces2[23].y == 7 * size_field)))
-												castling2[5] = false;
-
-											if (Draw(turn_move2, table2, pieces2))
-											{
-												std::cout << "draw" << "\n\n";
-												Sound1("music/victory_draw.wav", isChunk);
-												game_over2 = true;
-											}
-
-											else if (Check2(turn_move2, table2, pieces2))
-											{
-												isCheck2 = true;
-												if (Checkmate(turn_move2, table2, pieces2, num_last_moved_piece2))
-												{
-													std::string winner = "white";
-													if (turn_move2) winner = "black";
-													std::cout << "checkmate, " << winner << " won" << "\n\n";
-													Sound1("music/victory_draw.wav", isChunk);
-													game_over2 = true;
-												}
-												else std::cout << "check" << "\n\n";
-											}
-
-											else if (Stalemate(turn_move2, table2, pieces2, num_last_moved_piece2))
-											{
-												std::cout << "stalemate" << "\n\n";
-												Sound1("music/victory_draw.wav", isChunk);
-												game_over2 = true;
-											}
-
-											moves_num2++;
-											MoveRecording(moves_num2, moves_history2, table2, pieces2, game_over2, num_last_moved_piece2, turn_move2, isCheck2, castling2);
-											SaveTextures(moves_num2, textures2, textures1_2, textures2_2, textures3_2, moves_history2);
-
-											isChosen2 = false;*/
-											#pragma endregion
 											std::thread computerThread(ComputerMove, chosen_field2, become_field2, dst_chosen_piece2, dst_become_piece2, 
 												table2, &num_chosen_piece2, pieces2, &isCastling2, &isEnPassant2, &turn_move2, textures2, textures1_2,
 												textures2_2, textures3_2, &available_move2, &num_last_moved_piece2, &isCheck2, &isChunk, &game_over2,
@@ -2269,16 +2136,11 @@ int SDL_main(int argc, char* argv[])
 
 			SDL_RenderCopy(ren, tex_logout, NULL, &rect_logout);
 
-			if (moves_num1 == 0)
-			{
-				SDL_RenderCopy(ren, tex_return_gray, NULL, &rect_return);
-				SDL_RenderCopy(ren, tex_restart_gray, NULL, &rect_restart);
-			}
-			else
-			{
-				SDL_RenderCopy(ren, tex_return, NULL, &rect_return);
-				SDL_RenderCopy(ren, tex_restart, NULL, &rect_restart);
-			}
+			if ((moves_num1 == 0) || (moves_num1 >= 90)) SDL_RenderCopy(ren, tex_return_gray, NULL, &rect_return);
+			else SDL_RenderCopy(ren, tex_return, NULL, &rect_return);
+				
+			if (moves_num1 == 0) SDL_RenderCopy(ren, tex_restart_gray, NULL, &rect_restart);
+			else SDL_RenderCopy(ren, tex_restart, NULL, &rect_restart);
 
 			if ((moves_num1 == 0) || game_over1) SDL_RenderCopy(ren, tex_flag_gray, NULL, &rect_flag);
 			else SDL_RenderCopy(ren, tex_flag, NULL, &rect_flag);
@@ -2314,7 +2176,7 @@ int SDL_main(int argc, char* argv[])
 			if (moves_num2 == 0) SDL_RenderCopy(ren, tex_restart_gray, NULL, &rect_restart);
 			else SDL_RenderCopy(ren, tex_restart, NULL, &rect_restart);
 				
-			if (moves_num2 > 1) SDL_RenderCopy(ren, tex_return, NULL, &rect_return);
+			if ((moves_num2) > 1 && (moves_num2 < 90)) SDL_RenderCopy(ren, tex_return, NULL, &rect_return);
 			else SDL_RenderCopy(ren, tex_return_gray, NULL, &rect_return);
 				
 			if ((moves_num2 == 0) || game_over2) SDL_RenderCopy(ren, tex_flag_gray, NULL, &rect_flag);
@@ -2460,5 +2322,3 @@ int SDL_main(int argc, char* argv[])
 	DeInit(0);
 	return 0;
 }
-// сбрасывать ходы если их больше 100
-// не менять тип фигур после того как поставил ферзя и вернул ход
