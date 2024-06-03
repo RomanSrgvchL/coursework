@@ -913,7 +913,7 @@ void ReturnTextures(int moves_num, SDL_Texture* textures[32], SDL_Texture* textu
 }
 
 
-void ReturnMove(int moves_num, bool* turn_move, std::string table[8][8], SDL_Rect* pieces, bool* game_over, int* num, bool* isCheck, move* moves_history)
+void ReturnMove(int moves_num, bool* turn_move, std::string table[8][8], SDL_Rect* pieces, bool* game_over, int* num, bool* isCheck, move* moves_history, int mode)
 {
 	for (int i = 0; i < 8; i++)
 		for (int j = 0; j < 8; j++)
@@ -933,7 +933,8 @@ void ReturnMove(int moves_num, bool* turn_move, std::string table[8][8], SDL_Rec
 	*isCheck = moves_history[moves_num].isCheck;
 
 	for (int i = 0; i < 6; i++)
-		castling1[i] = moves_history[moves_num].castling[i];
+		if (mode == 1) castling1[i] = moves_history[moves_num].castling[i];
+		else if (mode == 2) castling2[i] = moves_history[moves_num].castling[i];
 	PrintTable(table);
 }
 
@@ -1051,7 +1052,8 @@ void ComputerMove(int* chosen_field2, int* become_field2, int* dst_chosen_piece2
 			become_field2[0] = rand() % 8;
 			become_field2[1] = rand() % 8;
 		} while (fields[become_field2[0]][become_field2[1]]);
-
+		fields[become_field2[0]][become_field2[1]] = true;
+		k++;
 
 		dst_become_piece2[0] = become_field2[1] * size_field;
 		dst_become_piece2[1] = become_field2[0] * size_field;
@@ -1068,7 +1070,6 @@ void ComputerMove(int* chosen_field2, int* become_field2, int* dst_chosen_piece2
 				!Check1(*turn_move2, chosen_field2, become_field2, table2, pieces2);
 		}
 		if (*available_move2) correct = true;
-		k++;
 	}
 
 	if ((table2[become_field2[0]][become_field2[1]] == "--") && !*isEnPassant2) Sound0("music/move.wav", *isChunk);
@@ -1560,7 +1561,7 @@ int SDL_main(int argc, char* argv[])
 								{
 									moves_num1--;
 									std::cout << "you returned the move" << "\n\n";
-									ReturnMove(moves_num1, &turn_move1, table1, pieces1, &game_over1, &num_last_moved_piece1, &isCheck1, moves_history1);
+									ReturnMove(moves_num1, &turn_move1, table1, pieces1, &game_over1, &num_last_moved_piece1, &isCheck1, moves_history1, mode);
 									ReturnTextures(moves_num1, textures1, textures1_1, textures2_1, textures3_1, moves_history1);
 									ChangeTextures(textures1, textures1_1, textures2_1, textures3_1, active_pieces);
 								}
@@ -1586,8 +1587,8 @@ int SDL_main(int argc, char* argv[])
 								if (moves_num1 != 0)
 								{
 									moves_num1 = 0;
-									std::cout << "you restart the game" << "\n\n";
-									ReturnMove(moves_num1, &turn_move1, table1, pieces1, &game_over1, &num_last_moved_piece1, &isCheck1, moves_history1);
+									std::cout << "you restarted the game" << "\n\n";
+									ReturnMove(moves_num1, &turn_move1, table1, pieces1, &game_over1, &num_last_moved_piece1, &isCheck1, moves_history1, mode);
 									ReturnTextures(moves_num1, textures1, textures1_1, textures2_1, textures3_1, moves_history1);
 									ChangeTextures(textures1, textures1_1, textures2_1, textures3_1, active_pieces);
 								}
@@ -1648,7 +1649,7 @@ int SDL_main(int argc, char* argv[])
 										if (!game_over2 || (turn_move2 && game_over2)) moves_num2 -= 2;
 										else moves_num2--;
 										std::cout << "you returned the move" << "\n\n";
-										ReturnMove(moves_num2, &turn_move2, table2, pieces2, &game_over2, &num_last_moved_piece2, &isCheck2, moves_history2);
+										ReturnMove(moves_num2, &turn_move2, table2, pieces2, &game_over2, &num_last_moved_piece2, &isCheck2, moves_history2, mode);
 										ReturnTextures(moves_num2, textures2, textures1_2, textures2_2, textures3_2, moves_history2);
 										ChangeTextures(textures2, textures1_2, textures2_2, textures3_2, active_pieces);
 									}
@@ -1673,8 +1674,8 @@ int SDL_main(int argc, char* argv[])
 									if (moves_num2 != 0)
 									{
 										moves_num2 = 0;
-										std::cout << "you restart the game" << "\n\n";
-										ReturnMove(moves_num2, &turn_move2, table2, pieces2, &game_over2, &num_last_moved_piece2, &isCheck2, moves_history2);
+										std::cout << "you restarted the game" << "\n\n";
+										ReturnMove(moves_num2, &turn_move2, table2, pieces2, &game_over2, &num_last_moved_piece2, &isCheck2, moves_history2, mode);
 										ReturnTextures(moves_num2, textures2, textures1_2, textures2_2, textures3_2, moves_history2);
 										ChangeTextures(textures2, textures1_2, textures2_2, textures3_2, active_pieces);;
 									}
