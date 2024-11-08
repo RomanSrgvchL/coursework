@@ -14,8 +14,6 @@ extern int board_height;
 extern int menu_bar;
 extern int win_width;
 extern int win_height;
-extern bool castling1[6];
-extern bool castling2[6];
 
 int SDL_main(int argc, char* argv[])
 {
@@ -273,6 +271,8 @@ int SDL_main(int argc, char* argv[])
 	bool available_move1 = false, available_move2 = false;
 	bool isCastling1 = false, isCastling2 = false;
 	bool isEnPassant1 = false, isEnPassant2 = false;
+	bool castling1[6] = { true, true, true, true, true, true };
+	bool castling2[6] = { true, true, true, true, true, true };
 	#pragma endregion
 
 	#pragma region BasicSettins
@@ -355,10 +355,10 @@ int SDL_main(int argc, char* argv[])
 						else if (mode == 1)
 						{
 							#pragma region Game
-							chosen_field1[0] = ev.button.y / size_field;
-							chosen_field1[1] = ev.button.x / size_field;
 							if ((ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < board_width) && (ev.button.y < board_height))
 							{
+								chosen_field1[0] = ev.button.y / size_field;
+								chosen_field1[1] = ev.button.x / size_field;
 								if ((table1[chosen_field1[0]][chosen_field1[1]] != "--") && !game_over1)
 								{
 									dst_chosen_piece1[0] = chosen_field1[1] * size_field;
@@ -445,10 +445,10 @@ int SDL_main(int argc, char* argv[])
 							if (turn_move2 || game_over2)
 							{
 								#pragma region Game	
-								chosen_field2[0] = ev.button.y / size_field;
-								chosen_field2[1] = ev.button.x / size_field;
 								if ((ev.button.x >= 0) && (ev.button.y >= 0) && (ev.button.x < board_width) && (ev.button.y < board_height))
 								{
+									chosen_field2[0] = ev.button.y / size_field;
+									chosen_field2[1] = ev.button.x / size_field;
 									if ((table2[chosen_field2[0]][chosen_field2[1]] != "--") && !game_over2)
 									{
 										dst_chosen_piece2[0] = chosen_field2[1] * size_field;
@@ -610,16 +610,16 @@ int SDL_main(int argc, char* argv[])
 					{
 						if (isChosen1)
 						{
-							pieces1[num_chosen_piece1].x = ev.motion.x - 40;
-							pieces1[num_chosen_piece1].y = ev.motion.y - 40;
+							pieces1[num_chosen_piece1].x = ev.motion.x - size_field / 2;
+							pieces1[num_chosen_piece1].y = ev.motion.y - size_field / 2;
 						}	
 					}
 					else if (mode == 2)
 					{
 						if (turn_move2 && isChosen2)
 						{
-							pieces2[num_chosen_piece2].x = ev.motion.x - 40;
-							pieces2[num_chosen_piece2].y = ev.motion.y - 40;
+							pieces2[num_chosen_piece2].x = ev.motion.x - size_field / 2;
+							pieces2[num_chosen_piece2].y = ev.motion.y - size_field / 2;
 						}
 					}
 					break;
@@ -640,12 +640,37 @@ int SDL_main(int argc, char* argv[])
 								(table1[chosen_field1[0]][chosen_field1[1]][0] != table1[become_field1[0]][become_field1[1]][0]))
 							{
 								if (table1[chosen_field1[0]][chosen_field1[1]][1] == 'K')
-									CheckCastling1(turn_move1, become_field1, table1, pieces1, chosen_field1, &available_move1, &isCastling1, castling1);
+								{
+									if (CheckCastling1(turn_move1, become_field1, table1, pieces1, chosen_field1, castling1))
+									{
+										available_move1 = true;
+										isEnPassant1 = true;
+									}
+									else
+									{
+										available_move1 = AvailableMove(chosen_field1, become_field1, table1) &&
+											!BitField(turn_move1, chosen_field1, become_field1, table1, pieces1);
+									}
+								}
+									
 								else if ((table1[chosen_field1[0]][chosen_field1[1]][1] == 'P') && (table1[become_field1[0]][become_field1[1]] == "--"))
-									CheckEnPassant1(turn_move1, table1, pieces1, chosen_field1, become_field1, &available_move1, &isEnPassant1, dst_become_piece1, num_last_moved_piece1);
+								{
+									if (CheckEnPassant1(turn_move1, table1, pieces1, chosen_field1, become_field1, dst_become_piece1, num_last_moved_piece1, moves_history1, moves_num1))
+									{
+										available_move1 = true;
+										isEnPassant1 = true;
+									}
+									else
+									{
+										available_move1 = AvailableMove(chosen_field1, become_field1, table1) &&
+											!Check1(turn_move1, chosen_field1, become_field1, table1, pieces1);
+									}
+								}
 								else
+								{
 									available_move1 = AvailableMove(chosen_field1, become_field1, table1) &&
-									!Check1(turn_move1, chosen_field1, become_field1, table1, pieces1);
+										!Check1(turn_move1, chosen_field1, become_field1, table1, pieces1);
+								}
 								if (available_move1)
 								{ 
 									if (isCastling1) std::cout << "you castled" << "\n\n";
@@ -715,7 +740,7 @@ int SDL_main(int argc, char* argv[])
 									if (!((pieces1[23].x == 7 * size_field) && (pieces1[23].y == 7 * size_field)))
 										castling1[5] = false;		
 
-									if (Draw(turn_move1, table1, pieces1))
+									if (Draw(table1))
 									{
 										std::cout << "draw" << "\n\n";
 										Sound1("music/victory_draw.wav", isChunk);
@@ -725,7 +750,7 @@ int SDL_main(int argc, char* argv[])
 									else if (Check2(turn_move1, table1, pieces1))
 									{
 										isCheck1 = true;
-										if (Checkmate(turn_move1, table1, pieces1, num_last_moved_piece1))
+										if (Checkmate(turn_move1, table1, pieces1, num_last_moved_piece1, moves_history1, moves_num1))
 										{
 											std::string winner = "white";
 											if (turn_move1) winner = "black";
@@ -736,7 +761,7 @@ int SDL_main(int argc, char* argv[])
 										else std::cout << "check" << "\n\n";
 									}
 
-									else if (Stalemate(turn_move1, table1, pieces1, num_last_moved_piece1))
+									else if (Stalemate(turn_move1, table1, pieces1, num_last_moved_piece1, moves_history1, moves_num1))
 									{
 										std::cout << "stalemate" << "\n\n";
 										Sound1("music/victory_draw.wav", isChunk);
@@ -757,17 +782,16 @@ int SDL_main(int argc, char* argv[])
 									pieces1[num_chosen_piece1].y = dst_chosen_piece1[1];;
 								}
 							}
-							else if (isChosen1 && !((dst_become_piece1[0] == dst_chosen_piece1[0]) &&
-								(dst_become_piece1[1] == dst_chosen_piece1[1])))
+							else if (isChosen1)
 							{
-								std::cout << "this move is impossible" << std::endl;
-								pieces1[num_chosen_piece1].x = dst_chosen_piece1[0];
-								pieces1[num_chosen_piece1].y = dst_chosen_piece1[1];
-							}
-							else if (isChosen1 && (dst_become_piece1[0] == dst_chosen_piece1[0]) &&
-								(dst_become_piece1[1] == dst_chosen_piece1[1]))
-							{
-								std::cout << "you put the " << table1[become_field1[0]][become_field1[1]] << " back" << std::endl;
+								if ((dst_become_piece1[0] == dst_chosen_piece1[0]) && (dst_become_piece1[1] == dst_chosen_piece1[1]))
+								{
+									std::cout << "you put the " << table1[become_field1[0]][become_field1[1]] << " back" << std::endl;
+								}
+								else
+								{
+									std::cout << "this move is impossible" << std::endl;
+								}
 								pieces1[num_chosen_piece1].x = dst_chosen_piece1[0];
 								pieces1[num_chosen_piece1].y = dst_chosen_piece1[1];
 							}
@@ -790,12 +814,36 @@ int SDL_main(int argc, char* argv[])
 									(table2[chosen_field2[0]][chosen_field2[1]][0] != table2[become_field2[0]][become_field2[1]][0]))
 								{
 									if (table2[chosen_field2[0]][chosen_field2[1]][1] == 'K')
-										CheckCastling1(turn_move2, become_field2, table2, pieces2, chosen_field2, &available_move2, &isCastling2, castling2);
+									{
+										if (CheckCastling1(turn_move2, become_field2, table2, pieces2, chosen_field2, castling2))
+										{
+											available_move2 = true;
+											isEnPassant2 = true;
+										}
+										else
+										{
+											available_move2 = AvailableMove(chosen_field2, become_field2, table2) &&
+												!BitField(turn_move2, chosen_field2, become_field2, table2, pieces2);
+										}
+									}
 									else if ((table2[chosen_field2[0]][chosen_field2[1]][1] == 'P') && (table2[become_field2[0]][become_field2[1]] == "--"))
-										CheckEnPassant1(turn_move2, table2, pieces2, chosen_field2, become_field2, &available_move2, &isEnPassant2, dst_become_piece2, num_last_moved_piece2);
+									{
+										if (CheckEnPassant1(turn_move2, table2, pieces2, chosen_field2, become_field2, dst_become_piece2, num_last_moved_piece2, moves_history2, moves_num2))
+										{
+											available_move2 = true;
+											isEnPassant2 = true;
+										}
+										else
+										{
+											available_move2 = AvailableMove(chosen_field2, become_field2, table2) &&
+												!Check1(turn_move2, chosen_field2, become_field2, table2, pieces2);
+										}
+									}
 									else
+									{
 										available_move2 = AvailableMove(chosen_field2, become_field2, table2) &&
-										!Check1(turn_move2, chosen_field2, become_field2, table2, pieces2);
+											!Check1(turn_move2, chosen_field2, become_field2, table2, pieces2);
+									}
 									if (available_move2)
 									{
 										if (isCastling2) std::cout << "you castled" << "\n\n";
@@ -865,7 +913,7 @@ int SDL_main(int argc, char* argv[])
 										if (!((pieces2[23].x == 7 * size_field) && (pieces2[23].y == 7 * size_field)))
 											castling2[5] = false;
 
-										if (Draw(turn_move2, table2, pieces2))
+										if (Draw(table2))
 										{
 											std::cout << "draw" << "\n\n";
 											Sound1("music/victory_draw.wav", isChunk);
@@ -875,7 +923,7 @@ int SDL_main(int argc, char* argv[])
 										else if (Check2(turn_move2, table2, pieces2))
 										{
 											isCheck2 = true;
-											if (Checkmate(turn_move2, table2, pieces2, num_last_moved_piece2))
+											if (Checkmate(turn_move2, table2, pieces2, num_last_moved_piece2, moves_history2, moves_num2))
 											{
 												std::string winner = "white";
 												if (turn_move2) winner = "black";
@@ -886,7 +934,7 @@ int SDL_main(int argc, char* argv[])
 											else std::cout << "check" << "\n\n";
 										}
 
-										else if (Stalemate(turn_move2, table2, pieces2, num_last_moved_piece2))
+										else if (Stalemate(turn_move2, table2, pieces2, num_last_moved_piece2, moves_history2, moves_num2))
 										{
 											std::cout << "stalemate" << "\n\n";
 											Sound1("music/victory_draw.wav", isChunk);
@@ -906,7 +954,7 @@ int SDL_main(int argc, char* argv[])
 											std::thread computerThread(ComputerMove, chosen_field2, become_field2, dst_chosen_piece2, dst_become_piece2, 
 												table2, &num_chosen_piece2, pieces2, &isCastling2, &isEnPassant2, &turn_move2, textures2, textures1_2,
 												textures2_2, textures3_2, &available_move2, &num_last_moved_piece2, &isCheck2, &isChunk, &game_over2,
-												&moves_num2, moves_history2, &isChosen2);
+												&moves_num2, moves_history2, &isChosen2, castling2);
 											computerThread.detach();										
 										}
 									}
@@ -917,20 +965,19 @@ int SDL_main(int argc, char* argv[])
 										pieces2[num_chosen_piece2].y = dst_chosen_piece2[1];;
 									}
 								}
-								else if (isChosen2 && !((dst_become_piece2[0] == dst_chosen_piece2[0]) &&
-									(dst_become_piece2[1] == dst_chosen_piece2[1])))
+								else if (isChosen2)
 								{
-									std::cout << "this move is impossible" << std::endl;
+									if ((dst_become_piece2[0] == dst_chosen_piece2[0]) && (dst_become_piece2[1] == dst_chosen_piece2[1]))
+									{
+										std::cout << "you put the " << table2[become_field2[0]][become_field2[1]] << " back" << std::endl;
+									}
+									else
+									{
+										std::cout << "this move is impossible" << std::endl;
+									}
 									pieces2[num_chosen_piece2].x = dst_chosen_piece2[0];
 									pieces2[num_chosen_piece2].y = dst_chosen_piece2[1];
-								}
-								else if (isChosen2 && (dst_become_piece2[0] == dst_chosen_piece2[0]) &&
-									(dst_become_piece2[1] == dst_chosen_piece2[1]))
-								{
-									std::cout << "you put the " << table2[become_field2[0]][become_field2[1]] << " back" << std::endl;
-									pieces2[num_chosen_piece2].x = dst_chosen_piece2[0];
-									pieces2[num_chosen_piece2].y = dst_chosen_piece2[1];
-								}
+							}
 								isChosen2 = false;					
 							}
 						}
@@ -989,7 +1036,7 @@ int SDL_main(int argc, char* argv[])
 			else SDL_RenderCopy(ren, tex_flag, NULL, &rect_flag);
 
 			for (int i = 0; i < 32; i++) SDL_RenderCopy(ren, textures1[i], NULL, &pieces1[i]);
-			if (isChosen1) RenAvailMove(turn_move1, ren, tex_dot, tex_frame, tex_star, pieces1, table1, chosen_field1, num_last_moved_piece1, castling1);
+			if (isChosen1) RenAvailMove(turn_move1, ren, tex_dot, tex_frame, tex_star, pieces1, table1, chosen_field1, num_last_moved_piece1, castling1, moves_history1, moves_num1);
 			if (isCheck1) RenCheck(turn_move1, table1, tex_check);
 			for (int i = 0; i < 32; i++) if (i == num_chosen_piece1) SDL_RenderCopy(ren, textures1[i], NULL, &pieces1[i]);
 		}
@@ -1026,7 +1073,7 @@ int SDL_main(int argc, char* argv[])
 			else SDL_RenderCopy(ren, tex_flag, NULL, &rect_flag);
 
 			for (int i = 0; i < 32; i++) SDL_RenderCopy(ren, textures2[i], NULL, &pieces2[i]);
-			if (isChosen2) RenAvailMove(turn_move2, ren, tex_dot, tex_frame, tex_star, pieces2, table2, chosen_field2, num_last_moved_piece2, castling2);
+			if (isChosen2) RenAvailMove(turn_move2, ren, tex_dot, tex_frame, tex_star, pieces2, table2, chosen_field2, num_last_moved_piece2, castling2, moves_history2, moves_num2);
 			if (isCheck2) RenCheck(turn_move2, table2, tex_check);
 			for (int i = 0; i < 32; i++) if (i == num_chosen_piece2) SDL_RenderCopy(ren, textures2[i], NULL, &pieces2[i]);
 		}
